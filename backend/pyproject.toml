@@ -18,3 +18,23 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.15.21",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes (unused imports/vars, undefined names)
+    "I",   # isort (import sorting)
+    "B",   # flake8-bugbear (likely bugs & bad practices)
+    "C4",  # flake8-comprehensions (cleaner comprehensions)
+    "UP",  # pyupgrade (modernize syntax for your Python version)
+]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

@@ -139,7 +139,20 @@ Key design rules:
   `backend/` and `frontend/` folders (monorepo). Learned: git doesn't track empty
   folders — a tracked file is needed inside each.
 - **Step 1.5 — Project doc.** Added this `docs/PROJECT_GUIDE.md` as the living
-  reference. *(← you are here)*
-- **Next — Backend project setup** (professional Python foundation): dependency
-  manager, virtual env, app structure, config/settings, linting/formatting,
-  pre-commit hooks.
+  reference.
+- **Step 2 — Backend foundation.** Chose `uv` for dependency management (fast,
+  reproducible via `uv.lock`, pins Python 3.13). Added runtime deps (`fastapi`,
+  `uvicorn[standard]`, `pydantic-settings`) and dev deps (`ruff`, `pytest`,
+  `pytest-asyncio`, `httpx`, `pre-commit`). Laid out a modular `app/` package
+  (`core/` for config, `api/routes/` for endpoints, `tests/`). Wrote typed settings
+  loaded from env (`app/core/config.py`), a modular health router, and a thin
+  `app/main.py` that assembles routers under an `/api/v1` prefix. Verified the
+  server runs and `GET /api/v1/health` returns `{"status":"ok"}` with free Swagger
+  docs at `/docs`. Added `ruff` config (lint families E/W/F/I/B/C4/UP + formatter)
+  and repo-root `pre-commit` hooks (whitespace/EOF/yaml/large-files/merge-conflict +
+  ruff lint & format, scoped to `backend/`). Foundation commits went directly to
+  `main`; feature branches start with the next step.
+- **Next — Step 3: Database schema** (first feature-branch work): design Postgres
+  models with `hospital_id` + Row-Level Security on every table, and the
+  `(doctor_id, slot_start)` unique constraint that makes double-booking impossible.
+  Tooling: SQLAlchemy models + Alembic migrations, Postgres running via Docker.

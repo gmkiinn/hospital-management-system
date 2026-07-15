@@ -152,6 +152,18 @@ Key design rules:
   and repo-root `pre-commit` hooks (whitespace/EOF/yaml/large-files/merge-conflict +
   ruff lint & format, scoped to `backend/`). Foundation commits went directly to
   `main`; feature branches start with the next step.
+- **Step 2.5 — Frontend foundation.** Confirmed React SPA (Vite) over Next.js —
+  cleaner fit for an auth-gated dashboard app with a separate FastAPI backend, and
+  simple static hosting in the Mumbai region. Scaffolded Vite + React + TypeScript.
+  Hit npm's optional-deps bug with Vite 8's rolldown bundler (missing native binding);
+  fixed by pinning `vite@^7.3.6` + `@vitejs/plugin-react@^5.2.0`. Added Tailwind CSS
+  v4 via its Vite plugin (no config file — single `@import "tailwindcss"`). Removed
+  Vite starter boilerplate. Set up Prettier + `eslint-config-prettier` alongside the
+  template's ESLint (ESLint = code quality, Prettier = formatting), with `format` /
+  `format:check` npm scripts. Wired the frontend into the repo-root `pre-commit` via
+  `local` hooks (one hook manager for the whole repo — no husky), scoped to
+  `frontend/`. Committed under Mahesh's identity (scaffolding); wife commits under
+  her own name from feature work on.
 - **Next — Step 3: Database schema** (first feature-branch work): design Postgres
   models with `hospital_id` + Row-Level Security on every table, and the
   `(doctor_id, slot_start)` unique constraint that makes double-booking impossible.

@@ -130,7 +130,126 @@ Key design rules:
 
 ---
 
-## 8. Running log of steps
+## 8. Detailed build roadmap
+
+> Every step from foundation to production. Each backend step is a `feature/<name>`
+> branch → PR → merge. The frontend counterpart is built in parallel by the wife.
+> Ordering logic: a working non-AI system first (Phase 1), then the high-risk AI on a
+> stable base (Phase 2), then polish/compliance (Phase 3), then productionize (Phase 4).
+
+### ✅ Done — Foundation
+- **Repo & monorepo scaffold** — GitHub repo, `backend/` + `frontend/`, git identity,
+  branch/PR workflow, `.gitignore`.
+- **Backend skeleton** — FastAPI + uv, typed env config, modular `app/` package,
+  health endpoint, ruff, repo-wide pre-commit.
+- **Frontend skeleton** — React + Vite (pinned v7) + TypeScript, Tailwind v4,
+  ESLint + Prettier, frontend hooks wired into pre-commit.
+
+### 🔵 Phase 1 — Core hospital system (no AI)
+
+**Step 3 — Database schema** *(current)*
+- Run Postgres + `pgvector` locally via Docker Compose (matches prod DB version).
+- Add SQLAlchemy (async) + Alembic; configure the DB connection/session.
+- Model the 6 core tables: `hospitals`, `users`, `departments`, `doctors`,
+  `patients`, `appointments`.
+- Bake in the standards: UUID primary keys, `hospital_id` on every table with
+  Row-Level Security policies, `created_at`/`updated_at` on every table, and the
+  `UNIQUE (doctor_id, slot_start)` constraint that makes double-booking impossible.
+- Generate the first Alembic migration and apply it.
+
+**Step 4 — Authentication & RBAC**
+- Registration + login endpoints; hash passwords with argon2/bcrypt.
+- Issue JWT access tokens + refresh tokens; refresh + logout flow.
+- RBAC dependency/middleware guarding every route by role (admin, receptionist,
+  patient, doctor, pharmacist).
+- Forgot/reset password flow.
+
+**Step 5 — Hospital configuration (admin)**
+- Admin CRUD for departments and doctors.
+- Per-doctor consultation timings (weekday windows) and slot duration.
+- Logic that turns a doctor's timings + slot duration into bookable slots.
+
+**Step 6 — Patient management**
+- Patient registration (by patient online, or by receptionist for walk-ins).
+- Profile fields: demographics, blood group, allergies, emergency contact.
+- Patient search (by name/phone/ID); medical-history data model & retrieval.
+
+**Step 7 — Appointments & live queue**
+- Booking on the shared slot grid from both online and walk-in paths, both hitting
+  the same DB constraint → no double-booking under concurrency.
+- Cancel / reschedule; mark patient arrived.
+- Token numbers + a per-doctor live queue; real-time position updates pushed over
+  WebSocket, backed by Redis pub/sub so it works across multiple API processes.
+
+**Phase 1 frontend (parallel):** login/register pages, role-based dashboards
+(admin/reception/doctor/patient/pharmacy shells), doctor search & availability,
+booking UI, live queue view.
+
+### 🟣 Phase 2 — AI flagship
+
+**Step 8 — Consultation capture**
+- Doctor "start/stop recording" flow; capture audio in the browser.
+- Upload audio to S3 (private bucket, short-TTL signed URLs, encrypted at rest).
+- Create a consultation record linked to the appointment.
+
+**Step 9 — AI medical scribe (async pipeline)**
+- Celery worker + Redis broker so heavy AI work stays off the request path.
+- Whisper transcription of the audio → transcript stored.
+- RAG step: pull the patient's relevant history/allergies/current meds from
+  Postgres + pgvector as grounding context.
+- GPT generates a structured summary (chief complaint, symptoms, diagnosis, plan)
+  + a suggested prescription draft, grounded in that context; flag drug-interaction risks.
+- **Doctor review & approval gate** — nothing is final until the doctor edits/approves.
+  Store the AI draft alongside the doctor's final version (this becomes the eval dataset).
+
+**Step 10 — Digital prescription**
+- Structured entry: medicine, dosage, frequency, duration.
+- Doctor digital signature; permanent immutable storage.
+- PDF generation for download.
+
+**Step 11 — Pharmacy handoff**
+- "Complete consultation" fires an event that creates a pharmacy record.
+- Pharmacy dashboard: new prescriptions, status transitions (preparing → ready →
+  collected); "medicine ready" triggers a patient notification.
+
+### 🟠 Phase 3 — Polish & compliance
+
+**Step 12 — Notifications**
+- Channels: email, SMS (Twilio), push (FCM). Events: booking confirmed, doctor
+  delayed, N patients remaining, your-turn-soon, prescription/medicine ready.
+- Retry with backoff; idempotent handlers.
+
+**Step 13 — History & downloads**
+- Full consultation-history views for patient and doctor.
+- Prescription PDF downloads; patient dashboard aggregation.
+
+**Step 14 — DPDP compliance**
+- Explicit consent capture at registration and before AI recording.
+- Append-only audit log of every read/write to a patient record.
+- Data access & erasure (right-to-be-forgotten) workflows; retention/auto-purge.
+
+### ⚙️ Phase 4 — Production readiness (DevOps)
+
+**Step 15 — Testing**
+- pytest (backend, incl. async + DB fixtures) and Vitest + React Testing Library
+  (frontend); coverage thresholds.
+
+**Step 16 — CI/CD**
+- GitHub Actions: on every PR run lint → typecheck → test → build; block merge on failure.
+- Deploy pipeline on merge to `main`.
+
+**Step 17 — Deployment**
+- Dockerize backend, worker, and frontend build.
+- AWS in Mumbai region: ECS Fargate (API + worker), RDS Postgres, ElastiCache Redis,
+  S3, ALB, secrets in a manager.
+
+**Step 18 — Observability & hardening**
+- Sentry error tracking, structured JSON logs, health/readiness probes.
+- Rate limiting on public endpoints, field-level PHI encryption, security review.
+
+---
+
+## 9. Running log of steps
 
 > Newest at the bottom. Each entry: what we did + why.
 

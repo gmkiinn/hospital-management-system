@@ -134,8 +134,27 @@ uv add fastapi "uvicorn[standard]" pydantic-settings
 # dev-only deps (linting, testing, hooks)
 uv add --dev ruff pytest pytest-asyncio httpx pre-commit
 ```
-- `uv.lock` (commit it) pins exact versions for reproducibility.
-- `.venv/` (gitignored) is the virtual environment.
+**Why `uv`:** it's a single fast tool that manages the virtual environment, the
+dependencies, *and* the lockfile — replacing the older `python -m venv` +
+`pip` + `requirements.txt` combo. `uv init --app` marks this as a deployable
+application (not a library) and pins the Python version in `.python-version`.
+
+**Runtime vs. dev split:** `uv add` records *runtime* dependencies (needed to run
+the app in production); `uv add --dev` records *development-only* tools (linters,
+test runners, hooks) in a separate group that won't ship to production. Keeping
+them apart keeps your production image small and its dependency surface minimal.
+
+- `fastapi` — the web framework. `uvicorn[standard]` — the ASGI server that runs it
+  (`[standard]` adds websockets/uvloop for performance). `pydantic-settings` — loads
+  typed config from environment variables.
+- `ruff` — linter + formatter. `pytest` (+ `pytest-asyncio`) — test runner with
+  async support. `httpx` — async HTTP client FastAPI's test client uses. `pre-commit`
+  — the git-hook framework (Section 4).
+- `uv.lock` (**commit it**) pins the exact version of every package and sub-package,
+  so everyone installs byte-identical dependencies.
+- `.venv/` (**gitignored**) is the actual virtual environment on your machine.
+- To reproduce this environment on another machine: `uv sync` reads `uv.lock` and
+  recreates `.venv/` exactly.
 
 ### 3.2 Package structure
 ```bash
@@ -163,6 +182,13 @@ backend/
 ├── uv.lock
 └── .python-version
 ```
+**Why this structure:** `app/` is the importable package; the empty `__init__.py`
+files are what make each folder a Python package so imports like
+`from app.core.config import settings` resolve. `core/` holds cross-cutting concerns
+(config now; later security, DB session); `api/routes/` holds one file per feature's
+endpoints; `tests/` mirrors the app. `main.py` stays thin and only *assembles*
+routers — endpoint logic never lives there. This is the modular-monolith idea applied
+to the folder layout: each feature is a self-contained module that `main.py` wires in.
 
 ### 3.3 `app/core/config.py` — typed settings
 ```python
@@ -255,8 +281,32 @@ uv run ruff format .     # format
 
 ## 4. Repo-wide pre-commit hooks
 
-Create `.pre-commit-config.yaml` at the **repo root** (git hooks live in one
-`.git`, so config is repo-wide, not per-folder):
+**What is pre-commit?** It's a framework that runs a list of checks ("hooks")
+automatically every time you run `git commit`, *before* the commit is created. If
+any hook fails or modifies a file, the commit is stopped. This means broken
+formatting, lint errors, leftover merge-conflict markers, or accidentally-staged
+huge files can't enter the repo in the first place — you catch them locally
+instead of in code review or CI.
+
+**How it works under the hood:**
+- Each hook comes from a git repo pinned to a specific version (`rev:`). pre-commit
+  clones that repo once and builds an **isolated environment** for it, cached
+  locally. So the exact hook version is identical for you, your teammate, and CI —
+  reproducibility, same as lockfiles give you for dependencies.
+- Hooks only run against the files you actually **staged** for that commit (not the
+  whole repo), so commits stay fast.
+- A hook can either *check* (pass/fail) or *fix* (modify the file). When a hook
+  modifies a file, pre-commit reports "Failed" on purpose and aborts — so you can
+  review the change and re-stage it. That's a feature, not an error.
+
+**Why the config lives at the repo root:** git hooks are installed into `.git/hooks/`,
+and a repo has exactly one `.git` (at the root). So in a monorepo there is one
+`.pre-commit-config.yaml` at the root that covers both `backend/` and `frontend/`;
+you scope individual hooks to a folder with `files:`. Using one hook manager for
+the whole repo is deliberate — mixing pre-commit with a JS-world manager like husky
+would have two tools fighting over `.git/hooks`.
+
+Create `.pre-commit-config.yaml` at the **repo root**:
 
 ```yaml
 repos:
@@ -296,14 +346,44 @@ repos:
         pass_filenames: false
 ```
 
-Install & test (from repo root):
+**What each hook in this config does:**
+
+- **`pre-commit-hooks` (the generic bundle)** — small, language-agnostic safety checks:
+  - `trailing-whitespace` — strips trailing spaces at line ends (noisy in diffs).
+  - `end-of-file-fixer` — ensures every file ends with exactly one newline (a POSIX
+    convention many tools rely on). *This is the hook that most often aborts a commit
+    on a freshly-created file — see the gotcha in Section 6.*
+  - `check-yaml` — parses YAML files and fails if one is invalid (catches broken config).
+  - `check-added-large-files` — blocks accidentally committing a large file (default
+    >500 KB), e.g. a stray build artifact, audio dump, or `node_modules` slip.
+  - `check-merge-conflict` — fails if a file still contains `<<<<<<<` / `>>>>>>>`
+    conflict markers.
+- **`ruff-pre-commit` (backend)** — runs your Python linter/formatter as hooks:
+  - `ruff` with `args: [--fix]` — lints and auto-fixes safe issues (unused imports,
+    import order).
+  - `ruff-format` — applies formatting.
+  - Both are scoped with `files: ^backend/` so they never touch frontend code.
+- **`local` hooks (frontend)** — hooks defined inline in this file instead of pulled
+  from a remote repo. Field-by-field:
+  - `entry` — the command to run; here it `cd`s into `frontend/` so ESLint/Prettier
+    find their config, then runs the npm script.
+  - `language: system` — run with tools already on the machine (node/npm), not an
+    isolated env pre-commit builds.
+  - `files: ^frontend/` — only trigger when a staged file is under `frontend/`.
+  - `pass_filenames: false` — don't append individual filenames to the command; the
+    npm scripts already target the whole frontend folder.
+
+**Install & test (from repo root):**
 ```bash
-pre-commit install            # writes .git/hooks/pre-commit
-pre-commit autoupdate         # pins the latest hook versions into the file
-pre-commit run --all-files    # one-time run against existing tracked files
+pre-commit install            # writes the git hook into .git/hooks/pre-commit so it runs on every commit
+pre-commit autoupdate         # bumps each rev: to the latest release and writes it back into the config
+pre-commit run --all-files    # one-time manual run against all currently-tracked files (normally hooks only run on staged files)
 ```
-- Hooks that **modify** a file report "Failed" (by design) — re-`git add` and commit again.
-- `pre-commit run --all-files` only sees **tracked** files; new/untracked files run once staged.
+- Hooks that **modify** a file report "Failed" (by design) — re-`git add` the fixed
+  file and commit again.
+- `pre-commit run --all-files` only sees files git already **tracks**; brand-new
+  untracked files aren't checked until you `git add` them (which is why a fresh
+  frontend/ shows "no files to check" until its first commit).
 
 ---
 
@@ -314,6 +394,12 @@ pre-commit run --all-files    # one-time run against existing tracked files
 cd frontend
 npm create vite@latest . -- --template react-ts
 ```
+**What this does:** `npm create vite@latest` runs Vite's project scaffolder. The `.`
+scaffolds into the current (empty) `frontend/` folder instead of a new subfolder;
+everything after `--` is passed to the scaffolder, and `--template react-ts` selects
+the React + TypeScript starter. Vite is the build tool + dev server for the SPA (it
+replaced the deprecated Create React App). It writes `package.json` but does *not*
+install packages — that's the next step.
 
 ### 5.2 IMPORTANT — pin Vite 7 (avoid the rolldown/npm bug)
 The latest `create-vite` pulls **Vite 8** (rolldown bundler), which trips npm's
@@ -333,10 +419,15 @@ npm run dev        # → Local: http://localhost:5173/
 `package-lock.json` (commit it) is the frontend lockfile; `node_modules/` is gitignored.
 
 ### 5.3 Tailwind CSS v4 (Vite plugin — no config file)
+Tailwind is a utility-class CSS framework: you style with classes like `flex`,
+`min-h-screen`, `text-3xl` directly in JSX instead of writing separate CSS. **v4 is
+much simpler than older versions** — it runs as a Vite plugin, so there's no
+`tailwind.config.js`, no PostCSS config, and no `npx tailwind init`. The plugin scans
+your files and generates only the CSS for the classes you actually use.
 ```bash
 npm install tailwindcss @tailwindcss/vite
 ```
-`vite.config.ts`:
+Register the plugin in `vite.config.ts` (order: React plugin, then Tailwind):
 ```ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'

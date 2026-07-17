@@ -223,3 +223,6 @@ frontend/dist/
 frontend/build/
 .env
 .env.local
+
+# macOS
+.DS_Store

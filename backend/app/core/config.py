@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
+    # Database
+    database_url: str
 
 
 settings = Settings()

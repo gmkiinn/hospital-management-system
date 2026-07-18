@@ -1,5 +1,6 @@
 from app.models.appointment import Appointment
 from app.models.base import Base
+from app.models.consultation import Consultation
 from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.hospital import Hospital
@@ -14,4 +15,5 @@ __all__ = [
     "Doctor",
     "Patient",
     "Appointment",
+    "Consultation",
 ]

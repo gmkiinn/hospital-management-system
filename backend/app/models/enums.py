@@ -27,3 +27,11 @@ class AppointmentStatus(enum.StrEnum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     NO_SHOW = "no_show"
+
+
+class ProcessingStatus(enum.StrEnum):
+    PENDING = "pending"
+    TRANSCRIBING = "transcribing"
+    SUMMARIZING = "summarizing"
+    READY = "ready"
+    FAILED = "failed"

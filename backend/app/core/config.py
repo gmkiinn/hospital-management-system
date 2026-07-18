@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # migration_database_url: Alembic, connects as `hms` owner (DDL, bypasses RLS)
     database_url: str
     migration_database_url: str
+    # Auth / JWT
+    jwt_secret_key: str
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
 
 
 settings = Settings()

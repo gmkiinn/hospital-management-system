@@ -283,7 +283,37 @@ booking UI, live queue view.
   `local` hooks (one hook manager for the whole repo — no husky), scoped to
   `frontend/`. Committed under Mahesh's identity (scaffolding); wife commits under
   her own name from feature work on.
-- **Next — Step 3: Database schema** (first feature-branch work): design Postgres
-  models with `hospital_id` + Row-Level Security on every table, and the
-  `(doctor_id, slot_start)` unique constraint that makes double-booking impossible.
-  Tooling: SQLAlchemy models + Alembic migrations, Postgres running via Docker.
+- **Step 3 — Database schema (DONE, merged PR #1).** Docker Postgres 16 + pgvector
+  on host port **5433** (5432 had a native PG conflict). 6 core models with UUID PKs,
+  timestamps, soft-delete, `hospital_id`. Two migrations: core tables (+ the
+  `UNIQUE(doctor_id, slot_start)` anti-double-booking constraint) and RLS. RLS uses a
+  restricted `hms_app` role (app runtime) vs `hms` owner (migrations); policies read
+  `current_setting('app.current_hospital_id')`, set per-transaction via
+  `set_config(..., true)`. Two DB URLs: `database_url` (hms_app) + `migration_database_url` (hms).
+
+- **Steps 4–7 + AI scribe (DONE, on branch `feature/auth`, 6 commits, NOT yet pushed).**
+  Hackathon pivot: user went full-speed, Claude drives (writes code/commands, asks only
+  for git pushes + secrets). Built the complete backend, demoed via Swagger. Modules:
+  - **Auth/RBAC** (`security.py`, `api/deps.py`, `routes/auth.py`): argon2 hashing,
+    PyJWT access+refresh tokens carrying `sub`/`hospital_id`/`role`, `get_current_user`
+    (reads hospital off token → `set_hospital_context` → loads user), `require_roles`.
+    Login/register resolve the single tenant via `services/tenancy.resolve_tenant_hospital`.
+  - **Departments, Doctors, Patients, Appointments** — service + schema + route per module,
+    admin/reception gated, RLS-scoped. Appointment booking catches `IntegrityError` → 409
+    (double-booking). Queue + token assignment on arrive.
+  - **AI Scribe** (`consultation` model + migration w/ RLS, `ai_service.py`,
+    `consultation_service.py`, `routes/consultations.py`): start consultation from
+    appointment → consent gate → audio upload (local `uploads/`, gitignored) → FastAPI
+    BackgroundTask transcribes (OpenAI Whisper) + summarizes (GPT → JSON validated by
+    `ClinicalSummary`) → doctor edits/saves final note (kept separate from AI draft) →
+    appointment completed. **Mock fallback when `OPENAI_API_KEY` empty** so it demos
+    without a key. Background task uses its own session and re-sets RLS context after
+    each commit.
+  - Ruff config: whitelisted `fastapi.Depends`/`require_roles` (B008), excluded
+    `alembic/versions`. Seed: `scripts/seed.py` → Demo hospital + admin@demo.com.
+  - Seeded demo logins: `admin@demo.com`/`admin12345`, `dr.rahul@demo.com`/`doctor12345`.
+
+- **Next steps:** (1) user adds `OPENAI_API_KEY` to `backend/.env` for real AI;
+  (2) push `feature/auth` + open PR; (3) README + demo script; (4) frontend under
+  wife's git credentials. Server run: `cd backend && uv run uvicorn app.main:app --reload`
+  → http://127.0.0.1:8000/docs. DB must be up: `docker compose up -d`.

@@ -55,6 +55,7 @@ extend-immutable-calls = [
     "fastapi.Security",
     "fastapi.File",
     "fastapi.Form",
+    "app.api.deps.require_roles",
 ]
 
 [tool.ruff.format]

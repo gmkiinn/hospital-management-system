@@ -1,8 +1,9 @@
 import uuid
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, Numeric, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import (
     Base,
@@ -11,6 +12,9 @@ from app.models.base import (
     TimestampMixin,
     UUIDPrimaryKeyMixin,
 )
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class Doctor(Base, UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, SoftDeleteMixin):
@@ -22,6 +26,7 @@ class Doctor(Base, UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, SoftDeleteM
         nullable=False,
         index=True,
     )
+    user: Mapped["User"] = relationship(lazy="selectin")
     department_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("departments.id", ondelete="RESTRICT"),
         nullable=False,

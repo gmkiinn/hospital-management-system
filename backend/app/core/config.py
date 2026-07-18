@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
+    # Database
+    # database_url: app runtime, connects as restricted `hms_app` (RLS applies)
+    # migration_database_url: Alembic, connects as `hms` owner (DDL, bypasses RLS)
+    database_url: str
+    migration_database_url: str
 
 
 settings = Settings()

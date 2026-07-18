@@ -5,8 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.18.5",
+    "asyncpg>=0.31.0",
     "fastapi>=0.139.0",
     "pydantic-settings>=2.14.2",
+    "sqlalchemy[asyncio]>=2.0.51",
     "uvicorn[standard]>=0.51.0",
 ]
 
@@ -22,6 +25,9 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+# Alembic migration scripts are auto-generated — don't lint/format them.
+extend-exclude = ["alembic/versions"]
+force-exclude = true
 
 [tool.ruff.lint]
 select = [

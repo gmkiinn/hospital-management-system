@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.api.routes import (
     appointments,
     auth,
+    consultations,
     departments,
     doctors,
     health,
@@ -21,3 +22,4 @@ app.include_router(departments.router, prefix=settings.api_v1_prefix)
 app.include_router(doctors.router, prefix=settings.api_v1_prefix)
 app.include_router(patients.router, prefix=settings.api_v1_prefix)
 app.include_router(appointments.router, prefix=settings.api_v1_prefix)
+app.include_router(consultations.router, prefix=settings.api_v1_prefix)

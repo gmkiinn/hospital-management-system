@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: hms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hms
+      POSTGRES_PASSWORD: hms_dev_password
+      POSTGRES_DB: hms
+    ports:
+      - "5433:5432"
+    volumes:
+      - hms_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hms -d hms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  hms_pgdata:

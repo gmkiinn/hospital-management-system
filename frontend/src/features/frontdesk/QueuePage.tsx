@@ -1,0 +1,120 @@
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
+import toast from 'react-hot-toast'
+import { CheckCircle2 } from 'lucide-react'
+import { doctorQueue, markArrived } from '../../api/appointments'
+import { listDoctors } from '../../api/doctors'
+import { listPatients } from '../../api/patients'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  Spinner,
+} from '../../components/ui'
+import { statusTone } from './status'
+
+function apiError(err: unknown, fallback: string): string {
+  return err instanceof AxiosError
+    ? String(err.response?.data?.detail ?? fallback)
+    : fallback
+}
+
+export function QueuePage() {
+  const queryClient = useQueryClient()
+  const [doctorId, setDoctorId] = useState('')
+
+  const doctorsQuery = useQuery({
+    queryKey: ['doctors'],
+    queryFn: () => listDoctors(),
+  })
+  const patientsQuery = useQuery({
+    queryKey: ['patients', ''],
+    queryFn: () => listPatients(),
+  })
+  const queueQuery = useQuery({
+    queryKey: ['queue', doctorId],
+    queryFn: () => doctorQueue(doctorId),
+    enabled: Boolean(doctorId),
+  })
+
+  const arrive = useMutation({
+    mutationFn: markArrived,
+    onSuccess: (a) => {
+      toast.success(`Checked in · token #${a.token_number}`)
+      queryClient.invalidateQueries({ queryKey: ['queue'] })
+    },
+    onError: (err) => toast.error(apiError(err, 'Could not check in')),
+  })
+
+  const doctors = doctorsQuery.data ?? []
+  const patients = patientsQuery.data ?? []
+  const queue = queueQuery.data ?? []
+  const patientName = (id: string) =>
+    patients.find((p) => p.id === id)?.full_name ?? '—'
+
+  return (
+    <div>
+      <PageHeader title="Queue" subtitle="Check patients in for their doctor" />
+
+      <div className="mb-4 max-w-sm">
+        <select
+          value={doctorId}
+          onChange={(e) => setDoctorId(e.target.value)}
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+        >
+          <option value="">Select a doctor…</option>
+          {doctors.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.full_name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {!doctorId ? (
+        <EmptyState>Choose a doctor to see their queue.</EmptyState>
+      ) : queueQuery.isLoading ? (
+        <Spinner />
+      ) : queue.length === 0 ? (
+        <EmptyState>No patients in the queue.</EmptyState>
+      ) : (
+        <div className="space-y-2">
+          {queue.map((a) => (
+            <Card key={a.id} className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-4">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+                  {a.token_number ?? '—'}
+                </div>
+                <div>
+                  <div className="font-medium text-slate-800">
+                    {patientName(a.patient_id)}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {new Date(a.slot_start).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge tone={statusTone(a.status)}>
+                  {a.status.replace('_', ' ')}
+                </Badge>
+                {a.status === 'booked' && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => arrive.mutate(a.id)}
+                    disabled={arrive.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Check in
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

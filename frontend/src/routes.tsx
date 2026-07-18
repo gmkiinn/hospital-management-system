@@ -3,6 +3,10 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './features/auth/LoginPage'
 import { DashboardPage } from './features/DashboardPage'
+import { PatientsPage } from './features/frontdesk/PatientsPage'
+import { SetupPage } from './features/frontdesk/SetupPage'
+import { BookingPage } from './features/frontdesk/BookingPage'
+import { QueuePage } from './features/frontdesk/QueuePage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -11,7 +15,21 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <AppLayout />,
-        children: [{ index: true, path: '/', element: <DashboardPage /> }],
+        children: [
+          { index: true, element: <DashboardPage /> },
+          {
+            element: <ProtectedRoute roles={['admin', 'receptionist']} />,
+            children: [
+              { path: '/patients', element: <PatientsPage /> },
+              { path: '/appointments', element: <BookingPage /> },
+              { path: '/queue', element: <QueuePage /> },
+            ],
+          },
+          {
+            element: <ProtectedRoute roles={['admin']} />,
+            children: [{ path: '/setup', element: <SetupPage /> }],
+          },
+        ],
       },
     ],
   },

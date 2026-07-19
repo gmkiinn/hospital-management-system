@@ -266,6 +266,7 @@ export function ConsultationRoomPage() {
                 ?.medications ?? []
             ).map(fromApiMedication)}
             saving={finalize.isPending}
+            alreadySaved={Boolean(consultation.final_summary)}
             onSave={({ summary, medications }) =>
               finalize.mutateAsync({
                 summary,

@@ -24,24 +24,30 @@ export function PrescriptionEditor({
   initialSummary,
   initialMedications,
   saving,
+  alreadySaved,
   onSave,
   onBack,
 }: {
   initialSummary: string
   initialMedications: Medication[]
   saving: boolean
+  // True only when this note was already approved/saved before. A fresh AI
+  // draft is unsaved, so the button must start enabled.
+  alreadySaved: boolean
   onSave: (payload: PrescriptionPayload) => Promise<unknown>
   onBack: () => void
 }) {
   const [summary, setSummary] = useState(initialSummary)
   const [meds, setMeds] = useState<Medication[]>(initialMedications)
   // Snapshot of what's on the server so we can disable saving when unchanged.
-  const [savedSnapshot, setSavedSnapshot] = useState(() =>
-    serialize(initialSummary, initialMedications),
+  // Null means "never saved" (e.g. an AI draft) → always dirty, so enabled.
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(() =>
+    alreadySaved ? serialize(initialSummary, initialMedications) : null,
   )
   const [savedAt, setSavedAt] = useState<number | null>(null)
 
-  const dirty = serialize(summary, meds) !== savedSnapshot
+  const dirty =
+    savedSnapshot === null || serialize(summary, meds) !== savedSnapshot
   const showSaved = savedAt !== null
 
   // The "Saved" confirmation is transient — clear it after 5s.

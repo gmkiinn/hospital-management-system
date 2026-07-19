@@ -1,26 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LogOut, Stethoscope } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
-import type { UserRole } from '../types'
 import { cn } from '../lib/utils'
-
-interface NavItem {
-  to: string
-  label: string
-  roles: UserRole[]
-}
-
-const NAV: NavItem[] = [
-  { to: '/setup', label: 'Setup', roles: ['admin'] },
-  { to: '/patients', label: 'Patients', roles: ['admin', 'receptionist'] },
-  {
-    to: '/appointments',
-    label: 'Appointments',
-    roles: ['admin', 'receptionist'],
-  },
-  { to: '/queue', label: 'Queue', roles: ['admin', 'receptionist'] },
-  { to: '/consultations', label: 'Consultations', roles: ['doctor', 'admin'] },
-]
+import { navFor } from '../config/nav'
 
 export function AppLayout() {
   const { user, logout } = useAuth()
@@ -31,7 +13,7 @@ export function AppLayout() {
     navigate('/login', { replace: true })
   }
 
-  const links = NAV.filter((item) => user && item.roles.includes(user.role))
+  const links = user ? navFor(user.role) : []
 
   return (
     <div className="min-h-screen bg-slate-50">

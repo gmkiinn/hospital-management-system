@@ -37,6 +37,7 @@ class AppointmentResponse(BaseModel):
     id: uuid.UUID
     doctor_id: uuid.UUID
     patient_id: uuid.UUID
+    patient_name: str | None = None
     slot_start: datetime
     slot_end: datetime
     source: AppointmentSource

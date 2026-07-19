@@ -124,8 +124,8 @@ export function PatientsPage() {
           ) : patients.length === 0 ? (
             <EmptyState>No patients found.</EmptyState>
           ) : (
-            <Card className="overflow-hidden p-0">
-              <table className="w-full text-sm">
+            <Card className="overflow-x-auto p-0">
+              <table className="w-full min-w-[28rem] text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-4 py-2.5 font-medium">Name</th>

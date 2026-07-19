@@ -15,6 +15,11 @@ export const SLOT_VISUALS: Record<SlotStatus, SlotVisual> = {
     badge: 'slate',
     label: 'Available',
   },
+  past: {
+    cell: 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed',
+    badge: 'slate',
+    label: 'Past',
+  },
   booked: {
     cell: 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100',
     badge: 'blue',

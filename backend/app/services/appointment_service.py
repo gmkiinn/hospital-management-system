@@ -71,6 +71,7 @@ async def book_appointment(
     )
     db.add(appointment)
     await db.flush()  # UNIQUE(doctor_id, slot_start) fires here on a clash
+    await db.refresh(appointment, ["patient"])  # so patient_name is available
     return appointment
 
 
@@ -91,6 +92,12 @@ async def book_walk_in(
     doctor = result.scalar_one_or_none()
     if doctor is None:
         raise ValueError("Doctor not found")
+
+    slot_start = data.slot_start
+    if slot_start.tzinfo is None:
+        slot_start = slot_start.replace(tzinfo=UTC)
+    if slot_start < datetime.now(UTC):
+        raise ValueError("That time slot has already passed")
 
     existing = await db.execute(
         select(Patient).where(Patient.phone == data.phone, Patient.deleted_at.is_(None))
@@ -132,6 +139,8 @@ async def book_walk_in(
     )
     db.add(appointment)
     await db.flush()  # UNIQUE(doctor_id, slot_start) fires here on a clash
+    # patient already loaded above, but refresh keeps the relationship consistent
+    await db.refresh(appointment, ["patient"])
     return appointment
 
 

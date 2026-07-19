@@ -7,7 +7,6 @@ import { Pencil, Stethoscope } from 'lucide-react'
 import { useAuth } from '../../auth/useAuth'
 import { listAppointments } from '../../api/appointments'
 import { listDoctors } from '../../api/doctors'
-import { listPatients } from '../../api/patients'
 import { startConsultation } from '../../api/consultations'
 import type { Appointment } from '../../types'
 import {
@@ -53,19 +52,11 @@ export function DoctorConsultationsPage() {
     enabled: Boolean(myDoctor?.id),
     refetchInterval: 5000, // live updates when reception checks patients in
   })
-  const patientsQuery = useQuery({
-    queryKey: ['patients', ''],
-    queryFn: () => listPatients(),
-  })
-
   const open = useMutation({
     mutationFn: startConsultation,
     onSuccess: (consultation) => navigate(`/consultations/${consultation.id}`),
     onError: (err) => toast.error(apiError(err, 'Could not open consultation')),
   })
-
-  const patientName = (id: string) =>
-    patientsQuery.data?.find((p) => p.id === id)?.full_name ?? '—'
 
   if (doctorsQuery.isLoading) return <Spinner />
 
@@ -121,7 +112,7 @@ export function DoctorConsultationsPage() {
                   <Row
                     key={a.id}
                     a={a}
-                    name={patientName(a.patient_id)}
+                    name={a.patient_name ?? '—'}
                     action={
                       <Button
                         onClick={() => open.mutate(a.id)}
@@ -146,7 +137,7 @@ export function DoctorConsultationsPage() {
             ) : (
               <div className="space-y-2">
                 {waiting.map((a) => (
-                  <Row key={a.id} a={a} name={patientName(a.patient_id)} />
+                  <Row key={a.id} a={a} name={a.patient_name ?? '—'} />
                 ))}
               </div>
             )}
@@ -162,7 +153,7 @@ export function DoctorConsultationsPage() {
                   <Row
                     key={a.id}
                     a={a}
-                    name={patientName(a.patient_id)}
+                    name={a.patient_name ?? '—'}
                     action={
                       <Button
                         variant="secondary"

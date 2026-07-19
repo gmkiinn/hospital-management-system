@@ -59,7 +59,7 @@ export function LoginPage() {
 
   return (
     <div className="grid min-h-screen place-items-center bg-slate-100 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <div className="grid h-11 w-11 place-items-center rounded-lg bg-indigo-600">
             <Stethoscope className="h-6 w-6 text-white" />
@@ -130,10 +130,10 @@ export function LoginPage() {
                   setValue('email', acc.email, { shouldValidate: true })
                   setValue('password', acc.password, { shouldValidate: true })
                 }}
-                className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1.5 text-left text-xs transition hover:border-indigo-300 hover:bg-indigo-50"
+                className="flex w-full flex-col items-start gap-0.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs transition hover:border-indigo-300 hover:bg-indigo-50 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
               >
                 <span className="font-medium text-slate-700">{acc.role}</span>
-                <span className="text-slate-400">
+                <span className="text-slate-500">
                   {acc.email} · {acc.password}
                 </span>
               </button>

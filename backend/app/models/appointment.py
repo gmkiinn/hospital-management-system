@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Text, UniqueConstraint, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import (
     Base,
@@ -12,6 +13,9 @@ from app.models.base import (
     UUIDPrimaryKeyMixin,
 )
 from app.models.enums import AppointmentSource, AppointmentStatus
+
+if TYPE_CHECKING:
+    from app.models.patient import Patient
 
 
 class Appointment(
@@ -62,3 +66,11 @@ class Appointment(
         DateTime(timezone=True), nullable=True
     )
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Eager-loaded so responses can carry the patient's name without a second
+    # client round-trip (keeps doctor/queue lists correct as patients are added).
+    patient: Mapped["Patient"] = relationship(lazy="selectin")
+
+    @property
+    def patient_name(self) -> str | None:
+        return self.patient.full_name if self.patient else None

@@ -6,7 +6,6 @@ import toast from 'react-hot-toast'
 import { Eye, Pencil } from 'lucide-react'
 import { listAppointments } from '../../api/appointments'
 import { listDoctors } from '../../api/doctors'
-import { listPatients } from '../../api/patients'
 import { startConsultation } from '../../api/consultations'
 import type { AppointmentStatus } from '../../types'
 import {
@@ -73,19 +72,11 @@ export function AdminConsultationsPage() {
     enabled: Boolean(activeDoctorId),
     refetchInterval: 5000,
   })
-  const patientsQuery = useQuery({
-    queryKey: ['patients', ''],
-    queryFn: () => listPatients(),
-  })
-
   const open = useMutation({
     mutationFn: startConsultation,
     onSuccess: (consultation) => navigate(`/consultations/${consultation.id}`),
     onError: (err) => toast.error(apiError(err, 'Could not open consultation')),
   })
-
-  const patientName = (id: string) =>
-    patientsQuery.data?.find((p) => p.id === id)?.full_name ?? '—'
 
   const rows = (appointmentsQuery.data ?? []).filter(
     (a) => a.status !== 'cancelled' && localDateStr(a.slot_start) === date,
@@ -159,7 +150,7 @@ export function AdminConsultationsPage() {
                   </div>
                   <div>
                     <div className="font-medium text-slate-800">
-                      {patientName(a.patient_id)}
+                      {a.patient_name ?? '—'}
                     </div>
                     <div className="text-xs text-slate-500">
                       {fmtTime(a.slot_start)}

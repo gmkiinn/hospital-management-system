@@ -188,10 +188,14 @@ export function BookingPage() {
                     {session.slots.map((slot) => {
                       const v = SLOT_VISUALS[slot.status]
                       const active = slot.slot_start === selectedStart
+                      const isPast = slot.status === 'past'
                       return (
                         <button
                           key={slot.slot_start}
-                          onClick={() => setSelectedStart(slot.slot_start)}
+                          disabled={isPast}
+                          onClick={() =>
+                            !isPast && setSelectedStart(slot.slot_start)
+                          }
                           className={`rounded-md border px-3 py-2 text-left text-sm transition ${v.cell} ${
                             active ? 'ring-2 ring-indigo-500' : ''
                           }`}

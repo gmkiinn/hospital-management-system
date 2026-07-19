@@ -5,7 +5,6 @@ import toast from 'react-hot-toast'
 import { CheckCircle2 } from 'lucide-react'
 import { doctorQueue, markArrived } from '../../api/appointments'
 import { listDoctors } from '../../api/doctors'
-import { listPatients } from '../../api/patients'
 import {
   Badge,
   Button,
@@ -47,10 +46,6 @@ export function QueuePage() {
     queryKey: ['doctors'],
     queryFn: () => listDoctors(),
   })
-  const patientsQuery = useQuery({
-    queryKey: ['patients', ''],
-    queryFn: () => listPatients(),
-  })
   const queueQuery = useQuery({
     queryKey: ['queue', doctorId],
     queryFn: () => doctorQueue(doctorId),
@@ -68,10 +63,7 @@ export function QueuePage() {
   })
 
   const doctors = doctorsQuery.data ?? []
-  const patients = patientsQuery.data ?? []
   const queue = queueQuery.data ?? []
-  const patientName = (id: string) =>
-    patients.find((p) => p.id === id)?.full_name ?? '—'
 
   const waiting = queue.filter((a) => a.status === 'booked').length
   const arrived = queue.filter((a) => a.status === 'arrived').length
@@ -120,7 +112,7 @@ export function QueuePage() {
                 </div>
                 <div>
                   <div className="font-medium text-slate-800">
-                    {patientName(a.patient_id)}
+                    {a.patient_name ?? '—'}
                   </div>
                   <div className="text-xs text-slate-500">
                     {new Date(a.slot_start).toLocaleString()}

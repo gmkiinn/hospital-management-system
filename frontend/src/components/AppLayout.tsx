@@ -18,38 +18,36 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <div className="flex items-center gap-6">
-            <Link
-              to="/"
-              className="flex items-center gap-2 font-semibold text-slate-800 transition hover:text-indigo-600"
-              aria-label="Go to dashboard"
-            >
-              <Stethoscope className="h-5 w-5 text-indigo-600" />
-              <span>AI HMS</span>
-            </Link>
-            <nav className="flex items-center gap-1">
-              {links.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      'rounded-md px-3 py-1.5 text-sm font-medium transition',
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-slate-600 hover:bg-slate-100',
-                    )
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-4">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+          <Link
+            to="/"
+            className="flex shrink-0 items-center gap-2 font-semibold text-slate-800 transition hover:text-indigo-600"
+            aria-label="Go to dashboard"
+          >
+            <Stethoscope className="h-5 w-5 text-indigo-600" />
+            <span>AI HMS</span>
+          </Link>
+          <nav className="flex flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap">
+            {links.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition',
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-slate-600 hover:bg-slate-100',
+                  )
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             {user && (
-              <div className="text-right text-sm leading-tight">
+              <div className="hidden text-right text-sm leading-tight sm:block">
                 <div className="font-medium text-slate-800">
                   {user.full_name}
                 </div>
@@ -58,15 +56,16 @@ export function AppLayout() {
             )}
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100"
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100"
+              aria-label="Logout"
             >
               <LogOut className="h-4 w-4" />
-              Logout
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         <Outlet />
       </main>
     </div>

@@ -3,7 +3,8 @@
 A production-minded backend that digitizes the patient consultation workflow for hospitals and
 clinics — from appointment booking to the consultation room. Its flagship feature is an
 **AI medical scribe**: the doctor records the consultation, and the system automatically
-**transcribes** it and drafts a **structured clinical note** for the doctor to review and approve.
+**transcribes** it and drafts a **plain-language summary and a structured prescription**
+(medications with dose timing) for the doctor to review and approve.
 
 > **Status:** Backend complete (auth → appointments → AI scribe). Interactive API docs live at
 > `/docs`. Frontend is a separate track.
@@ -27,7 +28,7 @@ mind).
 | **Departments & doctors** | Admin sets up departments and onboards doctors (each doctor also gets a login). |
 | **Patients** | Register and search patients by phone; stores demographics, allergies, emergency contacts. |
 | **Appointments** | Booking with **no double-booking** guarantee, walk-in/online source, arrival + **queue token** flow, status lifecycle. |
-| **🎙️ AI medical scribe** | Consent gate → audio upload → background **Whisper** transcription → **GPT** structured summary → doctor approval into a final note. |
+| **🎙️ AI medical scribe** | Consent gate → audio upload → background **Whisper** transcription → **GPT** summary + structured medications → doctor review (with a medicine typeahead) → approved prescription. |
 
 ## 🧱 Tech stack
 
@@ -44,7 +45,7 @@ Client ──HTTP──> FastAPI routes ──> services (business logic) ──
                       │                                                                       ▲
                       │  audio upload                                                         │ tenant-scoped
                       ▼                                                                       │ by hospital_id
-             Background task ──> OpenAI Whisper ──> OpenAI GPT ──> clinical note draft ───────┘
+             Background task ──> OpenAI Whisper ──> OpenAI GPT ──> prescription draft ─────────┘
 ```
 
 - **Thin routes → services → models.** Routes validate and delegate; services hold the logic.

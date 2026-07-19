@@ -74,12 +74,15 @@ async def book_walk_in(
             hospital_id=hospital_id,
             full_name=data.full_name,
             phone=data.phone,
+            gender=data.gender,
             email=data.email,
             address_line1=data.address,
         )
         db.add(patient)
     else:
         patient.full_name = data.full_name
+        if data.gender is not None:
+            patient.gender = data.gender
         if data.email is not None:
             patient.email = data.email
         if data.address is not None:

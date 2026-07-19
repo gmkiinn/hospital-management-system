@@ -12,7 +12,7 @@ import {
   markArrived,
 } from '../../api/appointments'
 import { getDoctorSlots, listDoctors } from '../../api/doctors'
-import type { Slot } from '../../types'
+import type { Gender, Slot } from '../../types'
 import {
   Badge,
   Button,
@@ -257,6 +257,7 @@ export function BookingPage() {
 const bookingSchema = z.object({
   full_name: z.string().min(1, 'Required'),
   phone: z.string().min(3, 'Required'),
+  gender: z.string().optional(),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   address: z.string().optional(),
   paid: z.boolean(),
@@ -274,6 +275,7 @@ function BookingForm({
   onSubmit: (values: {
     full_name: string
     phone: string
+    gender: Gender | null
     email: string | null
     address: string | null
     paid: boolean
@@ -301,6 +303,7 @@ function BookingForm({
           onSubmit({
             full_name: v.full_name,
             phone: v.phone,
+            gender: v.gender ? (v.gender as Gender) : null,
             email: v.email ? v.email : null,
             address: v.address ? v.address : null,
             paid: v.paid,
@@ -318,6 +321,12 @@ function BookingForm({
           error={formState.errors.phone?.message}
           {...register('phone')}
         />
+        <SelectField label="Gender (optional)" {...register('gender')}>
+          <option value="">Select…</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+        </SelectField>
         <TextField
           label="Email (optional)"
           error={formState.errors.email?.message}

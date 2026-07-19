@@ -8,7 +8,7 @@ from app.models.department import Department
 from app.models.doctor import Doctor
 from app.models.enums import UserRole
 from app.models.user import User
-from app.schemas.doctor import DoctorCreate, DoctorResponse
+from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdate
 
 
 def to_response(doctor: Doctor) -> DoctorResponse:
@@ -22,6 +22,7 @@ def to_response(doctor: Doctor) -> DoctorResponse:
         qualification=doctor.qualification,
         consultation_fee=doctor.consultation_fee,
         slot_duration_minutes=doctor.slot_duration_minutes,
+        sessions=doctor.sessions,
         is_active=doctor.is_active,
     )
 
@@ -55,8 +56,20 @@ async def create_doctor(
         qualification=data.qualification,
         consultation_fee=data.consultation_fee,
         slot_duration_minutes=data.slot_duration_minutes,
+        sessions=[s.model_dump() for s in data.sessions],
     )
     db.add(doctor)
+    await db.flush()
+    await db.refresh(doctor, ["user"])
+    return doctor
+
+
+async def update_doctor(db: AsyncSession, doctor: Doctor, data: DoctorUpdate) -> Doctor:
+    fields = data.model_dump(exclude_unset=True)
+    if "sessions" in fields and fields["sessions"] is not None:
+        fields["sessions"] = [s.model_dump() for s in data.sessions]
+    for key, value in fields.items():
+        setattr(doctor, key, value)
     await db.flush()
     await db.refresh(doctor, ["user"])
     return doctor

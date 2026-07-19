@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
@@ -6,7 +6,6 @@ import toast from 'react-hot-toast'
 import {
   ArrowLeft,
   CheckCircle2,
-  Circle,
   Loader2,
   Mic,
   Square,
@@ -21,6 +20,8 @@ import {
 } from '../../api/consultations'
 import { Badge, Button, Card, Spinner } from '../../components/ui'
 import { useAudioRecorder } from './useAudioRecorder'
+import { PrescriptionEditor } from './PrescriptionEditor'
+import { medicationToText, mockExtractedMedications } from './prescription'
 
 function apiError(err: unknown, fallback: string): string {
   return err instanceof AxiosError
@@ -235,15 +236,27 @@ export function ConsultationRoomPage() {
             4 · Review &amp; approve
           </h2>
           <p className="mb-4 text-sm text-slate-500">
-            AI-generated draft — edit anything, then save the final note.
+            AI-generated draft — edit the summary and medicines, then save.
           </p>
-          <SummaryEditor
-            initial={
-              consultation.final_summary ?? consultation.ai_summary_draft
-            }
+          <PrescriptionEditor
+            initialSummary={composeSummary(
+              consultation.final_summary ?? consultation.ai_summary_draft,
+            )}
+            initialMedications={mockExtractedMedications()}
             saving={finalize.isPending}
             reviewed={Boolean(consultation.reviewed_at)}
-            onSave={(s) => finalize.mutate(s)}
+            // Interim: map the new shape onto the current backend note fields.
+            // A dedicated prescription schema will replace this later.
+            onSave={({ summary, medications }) =>
+              finalize.mutate({
+                chief_complaint: '',
+                history_of_present_illness: summary,
+                symptoms: [],
+                diagnosis: '',
+                treatment_plan: medications.map(medicationToText).join('\n'),
+                follow_up: '',
+              })
+            }
           />
         </Card>
       )}
@@ -251,129 +264,16 @@ export function ConsultationRoomPage() {
   )
 }
 
-const EMPTY: ClinicalSummary = {
-  chief_complaint: '',
-  history_of_present_illness: '',
-  symptoms: [],
-  diagnosis: '',
-  treatment_plan: '',
-  follow_up: '',
-}
-
-function SummaryEditor({
-  initial,
-  onSave,
-  saving,
-  reviewed,
-}: {
-  initial: ClinicalSummary | null
-  onSave: (summary: ClinicalSummary) => void
-  saving: boolean
-  reviewed: boolean
-}) {
-  const seed = initial ?? EMPTY
-  const [form, setForm] = useState({
-    ...seed,
-    symptoms: seed.symptoms.join('\n'),
-  })
-
-  function field<K extends keyof typeof form>(key: K, value: string) {
-    setForm((f) => ({ ...f, [key]: value }))
-  }
-
-  function submit() {
-    onSave({
-      chief_complaint: form.chief_complaint,
-      history_of_present_illness: form.history_of_present_illness,
-      symptoms: form.symptoms
-        .split('\n')
-        .map((s) => s.trim())
-        .filter(Boolean),
-      diagnosis: form.diagnosis,
-      treatment_plan: form.treatment_plan,
-      follow_up: form.follow_up,
-    })
-  }
-
-  const inputCls =
-    'w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'
-
-  return (
-    <div className="space-y-3">
-      <Labeled label="Chief complaint">
-        <input
-          className={inputCls}
-          value={form.chief_complaint}
-          onChange={(e) => field('chief_complaint', e.target.value)}
-        />
-      </Labeled>
-      <Labeled label="History of present illness">
-        <textarea
-          rows={3}
-          className={inputCls}
-          value={form.history_of_present_illness}
-          onChange={(e) => field('history_of_present_illness', e.target.value)}
-        />
-      </Labeled>
-      <Labeled label="Symptoms (one per line)">
-        <textarea
-          rows={3}
-          className={inputCls}
-          value={form.symptoms}
-          onChange={(e) => field('symptoms', e.target.value)}
-        />
-      </Labeled>
-      <Labeled label="Diagnosis">
-        <input
-          className={inputCls}
-          value={form.diagnosis}
-          onChange={(e) => field('diagnosis', e.target.value)}
-        />
-      </Labeled>
-      <Labeled label="Treatment plan">
-        <textarea
-          rows={3}
-          className={inputCls}
-          value={form.treatment_plan}
-          onChange={(e) => field('treatment_plan', e.target.value)}
-        />
-      </Labeled>
-      <Labeled label="Follow-up">
-        <input
-          className={inputCls}
-          value={form.follow_up}
-          onChange={(e) => field('follow_up', e.target.value)}
-        />
-      </Labeled>
-
-      <div className="flex items-center gap-3 pt-1">
-        <Button onClick={submit} disabled={saving}>
-          <CheckCircle2 className="h-4 w-4" />
-          {saving ? 'Saving…' : 'Approve & save note'}
-        </Button>
-        {reviewed && (
-          <span className="flex items-center gap-1 text-sm text-green-700">
-            <Circle className="h-3 w-3 fill-green-600 text-green-600" /> Saved
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function Labeled({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">
-        {label}
-      </span>
-      {children}
-    </label>
-  )
+// Compose the editable summary from the AI draft's fields (interim, until the
+// backend scribe returns a single plain-language summary).
+function composeSummary(d: ClinicalSummary | null): string {
+  if (!d) return ''
+  return [
+    d.chief_complaint,
+    d.history_of_present_illness,
+    d.diagnosis && `Impression: ${d.diagnosis}.`,
+    d.follow_up && `Follow-up: ${d.follow_up}.`,
+  ]
+    .filter(Boolean)
+    .join(' ')
 }

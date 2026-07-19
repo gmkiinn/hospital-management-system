@@ -62,14 +62,18 @@ _MOCK_SUMMARY = {
 }
 
 
-async def transcribe_audio(audio_path: str) -> str:
+async def transcribe_to_english(audio_path: str) -> str:
+    """Transcribe audio to English, whatever language was actually spoken.
+
+    Uses Whisper's translation task: it auto-detects the source language
+    (including Indian regional languages) and returns English. No language
+    hint is sent, so it can't trip a model's "unsupported_language" error.
+    """
     if not settings.openai_api_key:
         return _MOCK_TRANSCRIPT
     client = AsyncOpenAI(api_key=settings.openai_api_key)
     with open(audio_path, "rb") as fh:
-        response = await client.audio.transcriptions.create(
-            model=settings.openai_transcription_model, file=fh
-        )
+        response = await client.audio.translations.create(model="whisper-1", file=fh)
     return response.text
 
 

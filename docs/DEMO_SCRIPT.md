@@ -1,7 +1,7 @@
 # 🎬 Demo Script — AI Medical Scribe
 
 A 5–7 minute live walkthrough for judges. It takes you from an empty hospital to an
-**AI-drafted, doctor-approved clinical note**. Run it in the Swagger UI at
+**AI-drafted, doctor-approved prescription** (summary + medications). Run it in the Swagger UI at
 **http://127.0.0.1:8000/docs** (curl equivalents are included for each step).
 
 > **Before you start** (one-time):
@@ -20,9 +20,9 @@ A 5–7 minute live walkthrough for judges. It takes you from an empty hospital 
 ## The story you're telling
 
 > "A patient walks into the OPD. The front desk registers them and books an appointment. The
-> doctor sees them, records the consult, and instead of typing notes, our AI writes a structured
-> clinical draft. The doctor reviews it, approves it, and the visit is done — all in the time it
-> used to take just to write the note."
+> doctor sees them, records the consult, and instead of typing notes, our AI writes a plain-language
+> summary and a draft prescription. The doctor reviews it, corrects any medicine, approves it, and
+> the visit is done — all in the time it used to take just to write the note."
 
 Roles you'll use:
 - **admin@demo.com** — sets up the department, the doctor, the patient, and books the appointment.
@@ -245,8 +245,10 @@ curl -s -X POST $BASE/consultations/$CONS/audio -H "Authorization: Bearer $DOC" 
 **`GET /api/v1/consultations/{consultation_id}`** — call it a few times.
 ➡️ `processing_status` moves **pending → transcribing → summarizing → ready**. When `ready`:
 - **`transcript`** — the full conversation text.
-- **`ai_summary_draft`** — a structured clinical note: `chief_complaint`,
-  `history_of_present_illness`, `symptoms[]`, `diagnosis`, `treatment_plan`, `follow_up`.
+- **`ai_summary_draft`** — a draft prescription: a plain-language **`summary`** plus a
+  **`medications`** array (each with `name`, dose timing `morning`/`afternoon`/`evening`/`night`,
+  `meal` before/after food, and `duration`). The AI only lists medicines actually named in the
+  conversation — it won't invent drugs.
 
 **This is the headline moment** — a doctor-ready draft generated from speech, with no typing.
 
@@ -259,20 +261,35 @@ curl -s $BASE/consultations/$CONS -H "Authorization: Bearer $DOC" | jq '{process
 
 ---
 
-## Step 11 — Doctor reviews & approves the final note
+## Step 11 — (Optional) Search the medicine catalog
 
-The doctor edits the draft as needed and saves it as the official note.
+The prescription UI has a **typeahead** to correct any medicine. It's backed by:
+
+**`GET /api/v1/medicines?q=azithro`**
+➡️ Returns matching medicine names from the catalog, e.g. `["Azithromycin 500mg"]`.
+
+<details><summary>curl</summary>
+
+```bash
+curl -s "$BASE/medicines?q=azithro" -H "Authorization: Bearer $DOC" | jq
+```
+</details>
+
+---
+
+## Step 12 — Doctor reviews & approves the final note
+
+The doctor edits the **summary** and **medications** as needed, then saves the official note.
 
 **`PATCH /api/v1/consultations/{consultation_id}/final-note`**
 ```json
 {
   "final_summary": {
-    "chief_complaint": "Fever and productive cough for three days.",
-    "history_of_present_illness": "Three-day history of fever and cough with intermittent shortness of breath and fatigue. No chest pain. No history of asthma.",
-    "symptoms": ["fever", "cough", "shortness of breath", "fatigue"],
-    "diagnosis": "Likely lower respiratory tract infection (to be confirmed).",
-    "treatment_plan": "Empirical antibiotics and antipyretics. Rest and oral fluids.",
-    "follow_up": "Review in five days if symptoms do not improve."
+    "summary": "Three-day history of fever and productive cough with intermittent shortness of breath and fatigue. No chest pain. Clinical impression: likely lower respiratory tract infection. Advised rest and fluids; review in five days if not improving.",
+    "medications": [
+      { "name": "Paracetamol 500mg", "morning": true, "afternoon": false, "evening": false, "night": true, "meal": "after", "duration": "5 days" },
+      { "name": "Azithromycin 500mg", "morning": true, "afternoon": false, "evening": false, "night": false, "meal": "after", "duration": "3 days" }
+    ]
   }
 }
 ```
@@ -284,7 +301,7 @@ The doctor edits the draft as needed and saves it as the official note.
 ```bash
 curl -s -X PATCH $BASE/consultations/$CONS/final-note -H "Authorization: Bearer $DOC" \
   -H 'Content-Type: application/json' \
-  -d '{"final_summary":{"chief_complaint":"Fever and productive cough for three days.","history_of_present_illness":"Three-day history of fever and cough...","symptoms":["fever","cough"],"diagnosis":"Likely lower respiratory tract infection.","treatment_plan":"Antibiotics and antipyretics.","follow_up":"Review in five days."}}' | jq
+  -d '{"final_summary":{"summary":"Likely lower respiratory tract infection; rest, fluids, review in 5 days.","medications":[{"name":"Azithromycin 500mg","morning":true,"afternoon":false,"evening":false,"night":false,"meal":"after","duration":"3 days"}]}}' | jq
 ```
 </details>
 
@@ -292,10 +309,10 @@ curl -s -X PATCH $BASE/consultations/$CONS/final-note -H "Authorization: Bearer 
 
 ## 🎤 Closing line for judges
 
-> "The doctor spoke to the patient, and the system produced a structured, editable clinical note —
-> keeping the doctor in control and the patient's consent on record. Everything is tenant-isolated
-> at the database level, so the same backend safely serves one clinic today or a hundred
-> hospitals tomorrow."
+> "The doctor spoke to the patient, and the system produced an editable summary and a structured
+> prescription — with a medicine typeahead so the doctor stays in control, and the patient's
+> consent on record. Everything is tenant-isolated at the database level, so the same backend
+> safely serves one clinic today or a hundred hospitals tomorrow."
 
 ## 🧯 Quick troubleshooting
 

@@ -77,10 +77,11 @@ async def save_final_note(
 async def process_consultation(
     consultation_id: uuid.UUID, hospital_id: uuid.UUID
 ) -> None:
-    """Background task: transcribe, then summarize, updating status as it goes.
+    """Background task: transcribe to English, then summarize.
 
-    Runs in its own session (the request's session is already closed). RLS context
-    is re-set after each commit because set_config(local=true) resets per transaction.
+    The patient may speak a regional language; the transcript is always
+    produced in English (the doctor reads English). Runs in its own session;
+    RLS context is re-set after each commit (set_config(local=true) resets per tx).
     """
     async with AsyncSessionLocal() as db:
         await set_hospital_context(db, hospital_id)
@@ -95,13 +96,13 @@ async def process_consultation(
         await db.commit()
 
         try:
-            transcript = await ai_service.transcribe_audio(audio_path)
+            english = await ai_service.transcribe_to_english(audio_path)
             await set_hospital_context(db, hospital_id)
-            consultation.transcript = transcript
+            consultation.transcript = english
             consultation.processing_status = ProcessingStatus.SUMMARIZING
             await db.commit()
 
-            draft = await ai_service.summarize_transcript(transcript)
+            draft = await ai_service.summarize_transcript(english)
             await set_hospital_context(db, hospital_id)
             consultation.ai_summary_draft = draft
             consultation.processing_status = ProcessingStatus.READY

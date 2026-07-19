@@ -36,6 +36,8 @@ class Consultation(Base, UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin):
         nullable=False,
     )
     # AI outputs kept separate from the doctor's final, approved note.
+    # `transcript` is always English — regional-language speech is translated
+    # to English so the doctor can read it.
     transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_summary_draft: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     final_summary: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

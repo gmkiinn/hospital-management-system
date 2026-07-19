@@ -178,6 +178,11 @@ export function ConsultationRoomPage() {
           </p>
         ) : (
           <div className="space-y-3">
+            <p className="text-xs text-slate-400">
+              You can speak in the patient's language — the transcript and note
+              are generated in English.
+            </p>
+
             {recorder.error && (
               <p className="text-sm text-red-600">{recorder.error}</p>
             )}

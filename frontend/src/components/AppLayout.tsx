@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
     roles: ['admin', 'receptionist'],
   },
   { to: '/queue', label: 'Queue', roles: ['admin', 'receptionist'] },
+  { to: '/consultations', label: 'Consultations', roles: ['doctor', 'admin'] },
 ]
 
 export function AppLayout() {

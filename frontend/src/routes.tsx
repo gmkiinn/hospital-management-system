@@ -7,6 +7,8 @@ import { PatientsPage } from './features/frontdesk/PatientsPage'
 import { SetupPage } from './features/frontdesk/SetupPage'
 import { BookingPage } from './features/frontdesk/BookingPage'
 import { QueuePage } from './features/frontdesk/QueuePage'
+import { DoctorConsultationsPage } from './features/consultation/DoctorConsultationsPage'
+import { ConsultationRoomPage } from './features/consultation/ConsultationRoomPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -28,6 +30,13 @@ export const router = createBrowserRouter([
           {
             element: <ProtectedRoute roles={['admin']} />,
             children: [{ path: '/setup', element: <SetupPage /> }],
+          },
+          {
+            element: <ProtectedRoute roles={['doctor', 'admin']} />,
+            children: [
+              { path: '/consultations', element: <DoctorConsultationsPage /> },
+              { path: '/consultations/:id', element: <ConsultationRoomPage /> },
+            ],
           },
         ],
       },

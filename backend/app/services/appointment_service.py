@@ -8,7 +8,11 @@ from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.enums import AppointmentSource, AppointmentStatus
 from app.models.patient import Patient
-from app.schemas.appointment import AppointmentCreate, WalkInBooking
+from app.schemas.appointment import (
+    AppointmentCreate,
+    AppointmentDetailsUpdate,
+    WalkInBooking,
+)
 
 ACTIVE_STATUSES = (
     AppointmentStatus.BOOKED,
@@ -140,6 +144,32 @@ async def book_walk_in(
     db.add(appointment)
     await db.flush()  # UNIQUE(doctor_id, slot_start) fires here on a clash
     # patient already loaded above, but refresh keeps the relationship consistent
+    await db.refresh(appointment, ["patient"])
+    return appointment
+
+
+async def update_appointment_details(
+    db: AsyncSession,
+    appointment: Appointment,
+    data: AppointmentDetailsUpdate,
+) -> Appointment:
+    """Edit the linked patient's details and the appointment's payment flag."""
+    result = await db.execute(
+        select(Patient).where(
+            Patient.id == appointment.patient_id, Patient.deleted_at.is_(None)
+        )
+    )
+    patient = result.scalar_one_or_none()
+    if patient is None:
+        raise ValueError("Patient not found")
+
+    patient.full_name = data.full_name
+    patient.phone = data.phone
+    patient.gender = data.gender
+    patient.email = data.email
+    patient.address_line1 = data.address
+    appointment.paid = data.paid
+    await db.flush()  # UNIQUE(phone) fires here if the new phone clashes
     await db.refresh(appointment, ["patient"])
     return appointment
 

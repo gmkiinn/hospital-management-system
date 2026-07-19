@@ -1,17 +1,30 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 import toast from 'react-hot-toast'
-import { CalendarDays, CheckCircle2, LogIn } from 'lucide-react'
+import {
+  CalendarDays,
+  CheckCircle2,
+  LogIn,
+  Mic,
+  Pencil,
+  Square,
+} from 'lucide-react'
 import {
   bookWalkIn,
   cancelAppointment,
   markArrived,
+  updateAppointmentDetails,
+  voiceDraft,
+  type AppointmentDetailsUpdate,
+  type VoiceBookingDraft,
 } from '../../api/appointments'
 import { getDoctorSlots, listDoctors } from '../../api/doctors'
+import { getPatient } from '../../api/patients'
+import { useAudioRecorder } from '../consultation/useAudioRecorder'
 import type { Gender, Slot } from '../../types'
 import {
   Badge,
@@ -43,6 +56,11 @@ export function BookingPage() {
   const [doctorId, setDoctorId] = useState('')
   const [date, setDate] = useState(todayStr())
   const [selectedStart, setSelectedStart] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  // Voice: fields parsed from the receptionist's spoken request, pre-filled
+  // into the booking form. `voiceNonce` forces the form to re-init on new input.
+  const [prefill, setPrefill] = useState<Partial<BookingForm> | null>(null)
+  const [voiceNonce, setVoiceNonce] = useState(0)
 
   const doctorsQuery = useQuery({
     queryKey: ['doctors'],
@@ -81,6 +99,7 @@ export function BookingPage() {
     onSuccess: () => {
       toast.success('Appointment booked')
       setSelectedStart(null)
+      setPrefill(null)
       refreshSlots()
     },
     onError: (err) => {
@@ -88,6 +107,50 @@ export function BookingPage() {
       refreshSlots() // slot may have just been taken
     },
   })
+
+  // --- Voice booking ---
+  const recorder = useAudioRecorder()
+  const processedBlob = useRef<Blob | null>(null)
+
+  function applyDraft(draft: VoiceBookingDraft) {
+    if (draft.doctor_id) setDoctorId(draft.doctor_id)
+    if (draft.date) setDate(draft.date)
+    setPrefill({
+      full_name: draft.full_name ?? undefined,
+      phone: draft.phone ?? undefined,
+      gender: draft.gender ?? undefined,
+      email: draft.email ?? undefined,
+      address: draft.address ?? undefined,
+      paid: draft.paid,
+    })
+    setVoiceNonce((n) => n + 1)
+    setSelectedStart(draft.slot_start)
+    if (draft.slot_start) {
+      toast.success(
+        `Heard: ${draft.full_name ?? 'patient'}${
+          draft.slot_label ? ` · ${draft.slot_label}` : ''
+        } — review and confirm`,
+      )
+    } else {
+      toast(draft.message ?? 'Pick a slot to finish booking')
+    }
+  }
+
+  const voiceMutation = useMutation({
+    mutationFn: (blob: Blob) => voiceDraft(blob, activeDoctorId, date),
+    onSuccess: applyDraft,
+    onError: (err) => toast.error(apiError(err, 'Could not understand that')),
+  })
+
+  // Auto-submit the recording once it's ready (fires once per new blob).
+  useEffect(() => {
+    if (recorder.blob && processedBlob.current !== recorder.blob) {
+      processedBlob.current = recorder.blob
+      voiceMutation.mutate(recorder.blob)
+    }
+    // voiceMutation is stable; depend only on the produced blob.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.blob])
 
   const arriveMutation = useMutation({
     mutationFn: markArrived,
@@ -108,6 +171,47 @@ export function BookingPage() {
     onError: (err) => toast.error(apiError(err, 'Could not cancel')),
   })
 
+  // --- Edit an existing appointment's patient details ---
+  const editingPatientId =
+    editing && selectedSlot ? selectedSlot.patient_id : null
+  const editPatientQuery = useQuery({
+    queryKey: ['patient', editingPatientId],
+    queryFn: () => getPatient(editingPatientId!),
+    enabled: Boolean(editingPatientId),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string
+      payload: AppointmentDetailsUpdate
+    }) => updateAppointmentDetails(id, payload),
+    onSuccess: () => {
+      toast.success('Details updated')
+      setEditing(false)
+      refreshSlots()
+    },
+    onError: (err) => toast.error(apiError(err, 'Could not update details')),
+  })
+
+  const editInitial: Partial<BookingForm> | null = editPatientQuery.data
+    ? {
+        full_name: editPatientQuery.data.full_name,
+        phone: editPatientQuery.data.phone,
+        gender: editPatientQuery.data.gender ?? undefined,
+        email: editPatientQuery.data.email ?? undefined,
+        address: editPatientQuery.data.address_line1 ?? undefined,
+        paid: selectedSlot?.paid ?? false,
+      }
+    : null
+
+  function selectSlot(start: string | null) {
+    setSelectedStart(start)
+    setEditing(false)
+  }
+
   const selectedDoctor = doctors.find((d) => d.id === activeDoctorId)
   const hasSessions = (selectedDoctor?.sessions.length ?? 0) > 0
 
@@ -125,7 +229,7 @@ export function BookingPage() {
           value={activeDoctorId}
           onChange={(e) => {
             setDoctorId(e.target.value)
-            setSelectedStart(null)
+            selectSlot(null)
           }}
         >
           {doctors.length === 0 && <option value="">No doctors</option>}
@@ -142,10 +246,44 @@ export function BookingPage() {
           value={date}
           onChange={(e) => {
             setDate(e.target.value || todayStr())
-            setSelectedStart(null)
+            selectSlot(null)
           }}
         />
       </div>
+
+      {/* Voice booking */}
+      <Card className="mb-5 lg:max-w-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-medium text-slate-800">
+              <Mic className="h-4 w-4 text-indigo-600" /> Book by voice
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Speak in any language (Hindi, Telugu, Tamil, Kannada, Malayalam,
+              …) — e.g. “Book Ramesh, phone 98765 43210, male, with Dr. Rahul
+              tomorrow morning, paid.” Voice isn’t always perfect — please check
+              every detail before tapping Book.
+            </p>
+          </div>
+          {recorder.status === 'recording' ? (
+            <Button variant="danger" onClick={recorder.stop}>
+              <Square className="h-4 w-4" /> Stop
+              <span className="ml-1 tabular-nums">{recorder.seconds}s</span>
+            </Button>
+          ) : (
+            <Button
+              onClick={() => recorder.start()}
+              disabled={voiceMutation.isPending || !activeDoctorId}
+            >
+              <Mic className="h-4 w-4" />
+              {voiceMutation.isPending ? 'Understanding…' : 'Start speaking'}
+            </Button>
+          )}
+        </div>
+        {recorder.error && (
+          <p className="mt-2 text-xs text-red-600">{recorder.error}</p>
+        )}
+      </Card>
 
       {/* Legend */}
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
@@ -193,9 +331,7 @@ export function BookingPage() {
                         <button
                           key={slot.slot_start}
                           disabled={isPast}
-                          onClick={() =>
-                            !isPast && setSelectedStart(slot.slot_start)
-                          }
+                          onClick={() => !isPast && selectSlot(slot.slot_start)}
                           className={`rounded-md border px-3 py-2 text-left text-sm transition ${v.cell} ${
                             active ? 'ring-2 ring-indigo-500' : ''
                           }`}
@@ -224,8 +360,10 @@ export function BookingPage() {
             </Card>
           ) : selectedSlot.status === 'available' ? (
             <BookingForm
-              key={selectedSlot.slot_start}
-              time={selectedSlot.label}
+              key={`${selectedSlot.slot_start}-${voiceNonce}`}
+              title={`Book ${selectedSlot.label}`}
+              submitLabel="Book appointment"
+              initial={prefill}
               pending={bookMutation.isPending}
               onSubmit={(values) =>
                 bookMutation.mutate({
@@ -236,9 +374,32 @@ export function BookingPage() {
               }
               onClose={() => setSelectedStart(null)}
             />
+          ) : editing ? (
+            editPatientQuery.isLoading || !editInitial ? (
+              <Card>
+                <Spinner label="Loading details…" />
+              </Card>
+            ) : (
+              <BookingForm
+                key={`edit-${selectedSlot.appointment_id}`}
+                title="Edit patient details"
+                submitLabel="Save changes"
+                initial={editInitial}
+                pending={updateMutation.isPending}
+                onSubmit={(values) =>
+                  selectedSlot.appointment_id &&
+                  updateMutation.mutate({
+                    id: selectedSlot.appointment_id,
+                    payload: values,
+                  })
+                }
+                onClose={() => setEditing(false)}
+              />
+            )
           ) : (
             <SlotDetails
               slot={selectedSlot}
+              onEdit={() => setEditing(true)}
               onArrive={() =>
                 selectedSlot.appointment_id &&
                 arriveMutation.mutate(selectedSlot.appointment_id)
@@ -270,12 +431,16 @@ const bookingSchema = z.object({
 type BookingForm = z.infer<typeof bookingSchema>
 
 function BookingForm({
-  time,
+  title,
+  submitLabel,
+  initial,
   pending,
   onSubmit,
   onClose,
 }: {
-  time: string
+  title: string
+  submitLabel: string
+  initial?: Partial<BookingForm> | null
   pending: boolean
   onSubmit: (values: {
     full_name: string
@@ -289,13 +454,13 @@ function BookingForm({
 }) {
   const { register, handleSubmit, formState } = useForm<BookingForm>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: { paid: false },
+    defaultValues: { paid: false, ...initial },
   })
 
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-medium text-slate-800">Book {time}</h2>
+        <h2 className="font-medium text-slate-800">{title}</h2>
         <button
           onClick={onClose}
           className="text-sm text-slate-400 hover:text-slate-600"
@@ -351,7 +516,7 @@ function BookingForm({
           Payment collected
         </label>
         <Button type="submit" disabled={pending} className="w-full">
-          {pending ? 'Booking…' : 'Book appointment'}
+          {pending ? 'Saving…' : submitLabel}
         </Button>
       </form>
     </Card>
@@ -361,6 +526,7 @@ function BookingForm({
 // --- Slot details (occupied slot) ---
 function SlotDetails({
   slot,
+  onEdit,
   onArrive,
   arrivePending,
   onCancel,
@@ -368,6 +534,7 @@ function SlotDetails({
   onClose,
 }: {
   slot: Slot
+  onEdit: () => void
   onArrive: () => void
   arrivePending: boolean
   onCancel: () => void
@@ -377,6 +544,7 @@ function SlotDetails({
   const v = SLOT_VISUALS[slot.status]
   const canArrive = slot.status === 'booked'
   const canCancel = slot.status === 'booked' || slot.status === 'arrived'
+  const canEdit = ['booked', 'arrived', 'in_consultation'].includes(slot.status)
 
   return (
     <Card>
@@ -416,7 +584,7 @@ function SlotDetails({
         )}
       </dl>
 
-      {(canArrive || canCancel) && (
+      {(canArrive || canCancel || canEdit) && (
         <div className="mt-4 space-y-2">
           {canArrive && (
             <Button
@@ -425,6 +593,11 @@ function SlotDetails({
               className="w-full"
             >
               <LogIn className="h-4 w-4" /> Check in (send to doctor)
+            </Button>
+          )}
+          {canEdit && (
+            <Button variant="secondary" onClick={onEdit} className="w-full">
+              <Pencil className="h-4 w-4" /> Edit details
             </Button>
           )}
           {canCancel && (

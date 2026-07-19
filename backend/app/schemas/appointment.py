@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -47,5 +47,35 @@ class AppointmentResponse(BaseModel):
     reason: str | None
 
 
+class AppointmentDetailsUpdate(BaseModel):
+    """Edit the patient details (and payment) on an existing appointment."""
+
+    full_name: str = Field(min_length=1, max_length=255)
+    phone: str = Field(min_length=3, max_length=20)
+    gender: Gender | None = None
+    email: EmailStr | None = None
+    address: str | None = Field(default=None, max_length=500)
+    paid: bool = False
+
+
 class CancelRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
+
+
+class VoiceBookingDraft(BaseModel):
+    """A resolved-but-unconfirmed booking parsed from the receptionist's voice."""
+
+    transcript: str
+    doctor_id: uuid.UUID
+    doctor_name: str
+    date: date
+    slot_start: datetime | None
+    slot_label: str | None
+    full_name: str | None
+    phone: str | None
+    gender: Gender | None
+    email: str | None
+    address: str | None
+    paid: bool
+    reason: str | None
+    message: str | None

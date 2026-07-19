@@ -62,6 +62,50 @@ _MOCK_SUMMARY = {
 }
 
 
+_BOOKING_PROMPT = (
+    "You extract appointment-booking details from a receptionist's spoken request "
+    "(already translated to English). Return ONLY valid JSON with these keys: "
+    "full_name (string), phone (string of digits only, no spaces or symbols), "
+    "gender ('male' | 'female' | 'other' | null), email (string | null), "
+    "address (string | null), paid (boolean — true only if payment is said to be "
+    "done), reason (string | null, the complaint), doctor_name (string | null — the "
+    "doctor mentioned), date (string | null — as said, e.g. 'today', 'tomorrow', "
+    "'2026-07-20', or a weekday), time (string | null — e.g. '10:30', '10:30 am', "
+    "'6 pm', 'morning', 'evening'). Use null for anything not stated. Never invent "
+    "values."
+)
+
+# Used when no OpenAI key is configured (local/dev), so the flow is testable.
+_MOCK_BOOKING = {
+    "full_name": "Ramesh Kumar",
+    "phone": "9876543210",
+    "gender": "male",
+    "email": None,
+    "address": "MG Road, Bengaluru",
+    "paid": True,
+    "reason": "fever and cough",
+    "doctor_name": None,
+    "date": "today",
+    "time": "morning",
+}
+
+
+async def extract_booking(transcript: str) -> dict:
+    """Pull structured booking fields out of the receptionist's request."""
+    if not settings.openai_api_key:
+        return dict(_MOCK_BOOKING)
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    response = await client.chat.completions.create(
+        model=settings.openai_summary_model,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": _BOOKING_PROMPT},
+            {"role": "user", "content": transcript},
+        ],
+    )
+    return json.loads(response.choices[0].message.content or "{}")
+
+
 async def transcribe_to_english(audio_path: str) -> str:
     """Transcribe audio to English, whatever language was actually spoken.
 

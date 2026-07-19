@@ -110,7 +110,9 @@ async def upload_audio(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Recording consent is required before uploading audio",
         )
-    if file.content_type not in _ALLOWED_AUDIO:
+    # Strip any codec parameter (e.g. "audio/webm;codecs=opus" from MediaRecorder).
+    base_content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if base_content_type not in _ALLOWED_AUDIO:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=f"Unsupported audio type: {file.content_type}",

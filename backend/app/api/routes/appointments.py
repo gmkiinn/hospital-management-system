@@ -12,6 +12,7 @@ from app.schemas.appointment import (
     AppointmentCreate,
     AppointmentResponse,
     CancelRequest,
+    WalkInBooking,
 )
 from app.services import appointment_service
 
@@ -42,6 +43,32 @@ async def book_appointment(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="That doctor already has an appointment at this time",
+        ) from exc
+    return AppointmentResponse.model_validate(appointment)
+
+
+@router.post(
+    "/walk-in", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED
+)
+async def book_walk_in(
+    payload: WalkInBooking,
+    db: AsyncSession = Depends(get_db),
+    staff: User = Depends(require_roles(*_STAFF)),
+) -> AppointmentResponse:
+    try:
+        appointment = await appointment_service.book_walk_in(
+            db, staff.hospital_id, staff.id, payload
+        )
+        await db.commit()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="That slot was just taken",
         ) from exc
     return AppointmentResponse.model_validate(appointment)
 

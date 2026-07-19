@@ -6,8 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment
 from app.models.doctor import Doctor
-from app.models.enums import AppointmentStatus
-from app.schemas.appointment import AppointmentCreate
+from app.models.enums import AppointmentSource, AppointmentStatus
+from app.models.patient import Patient
+from app.schemas.appointment import AppointmentCreate, WalkInBooking
 
 ACTIVE_STATUSES = (
     AppointmentStatus.BOOKED,
@@ -39,6 +40,63 @@ async def book_appointment(
         slot_end=slot_end,
         source=data.source,
         status=AppointmentStatus.BOOKED,
+        reason=data.reason,
+    )
+    db.add(appointment)
+    await db.flush()  # UNIQUE(doctor_id, slot_start) fires here on a clash
+    return appointment
+
+
+async def book_walk_in(
+    db: AsyncSession,
+    hospital_id: uuid.UUID,
+    booked_by_user_id: uuid.UUID,
+    data: WalkInBooking,
+) -> Appointment:
+    """Capture the patient and book a slot in one step (receptionist board).
+
+    The patient is matched by phone within the hospital (RLS-scoped) and reused
+    if found, updating their details; otherwise a new patient is created.
+    """
+    result = await db.execute(
+        select(Doctor).where(Doctor.id == data.doctor_id, Doctor.deleted_at.is_(None))
+    )
+    doctor = result.scalar_one_or_none()
+    if doctor is None:
+        raise ValueError("Doctor not found")
+
+    existing = await db.execute(
+        select(Patient).where(Patient.phone == data.phone, Patient.deleted_at.is_(None))
+    )
+    patient = existing.scalars().first()
+    if patient is None:
+        patient = Patient(
+            hospital_id=hospital_id,
+            full_name=data.full_name,
+            phone=data.phone,
+            email=data.email,
+            address_line1=data.address,
+        )
+        db.add(patient)
+    else:
+        patient.full_name = data.full_name
+        if data.email is not None:
+            patient.email = data.email
+        if data.address is not None:
+            patient.address_line1 = data.address
+    await db.flush()
+
+    slot_end = data.slot_start + timedelta(minutes=doctor.slot_duration_minutes)
+    appointment = Appointment(
+        hospital_id=hospital_id,
+        doctor_id=data.doctor_id,
+        patient_id=patient.id,
+        booked_by_user_id=booked_by_user_id,
+        slot_start=data.slot_start,
+        slot_end=slot_end,
+        source=AppointmentSource.WALK_IN,
+        status=AppointmentStatus.BOOKED,
+        paid=data.paid,
         reason=data.reason,
     )
     db.add(appointment)

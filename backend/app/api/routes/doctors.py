@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -8,8 +9,9 @@ from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
 from app.models.enums import UserRole
 from app.models.user import User
-from app.schemas.doctor import DoctorCreate, DoctorResponse
-from app.services import doctor_service
+from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdate
+from app.schemas.scheduling import DaySlots
+from app.services import doctor_service, scheduling_service
 
 router = APIRouter(prefix="/doctors", tags=["doctors"])
 
@@ -58,3 +60,35 @@ async def get_doctor(
             status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
         )
     return doctor_service.to_response(doctor)
+
+
+@router.patch("/{doctor_id}", response_model=DoctorResponse)
+async def update_doctor(
+    doctor_id: uuid.UUID,
+    payload: DoctorUpdate,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(require_roles(UserRole.ADMIN)),
+) -> DoctorResponse:
+    doctor = await doctor_service.get_doctor(db, doctor_id)
+    if doctor is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
+        )
+    doctor = await doctor_service.update_doctor(db, doctor, payload)
+    await db.commit()
+    return doctor_service.to_response(doctor)
+
+
+@router.get("/{doctor_id}/slots", response_model=DaySlots)
+async def get_doctor_slots(
+    doctor_id: uuid.UUID,
+    date: date,
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> DaySlots:
+    doctor = await doctor_service.get_doctor(db, doctor_id)
+    if doctor is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
+        )
+    return await scheduling_service.get_day_slots(db, doctor, date)

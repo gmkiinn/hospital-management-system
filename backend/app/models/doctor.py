@@ -2,7 +2,8 @@ import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, ForeignKey, Numeric, String, Text, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import (
@@ -42,5 +43,10 @@ class Doctor(Base, UUIDPrimaryKeyMixin, TenantMixin, TimestampMixin, SoftDeleteM
         Numeric(10, 2), nullable=True
     )
     slot_duration_minutes: Mapped[int] = mapped_column(default=15, nullable=False)
+    # Daily working sessions, applied to every day (pilot). Each item is
+    # {"label": str, "start": "HH:MM", "end": "HH:MM"} in the hospital's timezone.
+    sessions: Mapped[list[dict]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

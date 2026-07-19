@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
-import { MEDICINE_CATALOG } from './prescription'
+import { searchMedicines } from '../../api/medicines'
 
 export function MedicineTypeahead({
   value,
@@ -11,13 +12,19 @@ export function MedicineTypeahead({
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState(value)
+  const [debounced, setDebounced] = useState(value)
 
-  const q = query.trim().toLowerCase()
-  const matches = (
-    q
-      ? MEDICINE_CATALOG.filter((m) => m.toLowerCase().includes(q))
-      : MEDICINE_CATALOG
-  ).slice(0, 8)
+  // Debounce keystrokes before hitting the catalog endpoint.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 200)
+    return () => clearTimeout(t)
+  }, [query])
+
+  const { data: matches = [] } = useQuery({
+    queryKey: ['medicines', debounced],
+    queryFn: () => searchMedicines(debounced),
+    enabled: open,
+  })
 
   function pick(name: string) {
     setQuery(name)

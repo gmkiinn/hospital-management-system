@@ -3,16 +3,21 @@ import json
 from openai import AsyncOpenAI
 
 from app.core.config import settings
-from app.schemas.consultation import ClinicalSummary
+from app.schemas.consultation import PrescriptionNote
 
 _SYSTEM_PROMPT = (
-    "You are a clinical documentation assistant creating a DRAFT for a doctor to "
-    "review. Rules: use ONLY information present in the transcript; do not invent "
-    "facts; use neutral, non-committal language where information is uncertain; this "
-    "is a draft, NOT a confirmed diagnosis or prescription. Return ONLY valid JSON "
-    "with these keys: chief_complaint (string), history_of_present_illness (string), "
-    "symptoms (array of strings), diagnosis (string), treatment_plan (string), "
-    "follow_up (string)."
+    "You are a clinical documentation assistant creating a DRAFT prescription for a "
+    "doctor to review. Rules: use ONLY information present in the transcript; do not "
+    "invent medications or doses; this is a draft, NOT a confirmed prescription. "
+    "Return ONLY valid JSON with these keys: "
+    "summary (string: a concise plain-language summary of the consultation, "
+    "including complaint, findings, and advice), "
+    "medications (array of objects, each with: name (string, the medicine), "
+    "morning (bool), afternoon (bool), evening (bool), night (bool) for dose "
+    "timing, meal ('before' or 'after' food), duration (string, e.g. '5 days')). "
+    "If a medicine's timing is unclear, set only the booleans you are confident "
+    "about and leave the rest false. Use an empty medications array if none are "
+    "mentioned."
 )
 
 _MOCK_TRANSCRIPT = (
@@ -27,20 +32,32 @@ _MOCK_TRANSCRIPT = (
 )
 
 _MOCK_SUMMARY = {
-    "chief_complaint": "Fever and productive cough for three days.",
-    "history_of_present_illness": (
-        "Three-day history of fever and cough with intermittent shortness of breath "
-        "and fatigue. No chest pain. No history of asthma."
+    "summary": (
+        "Three-day history of fever and productive cough with intermittent "
+        "shortness of breath and fatigue. No chest pain and no history of asthma. "
+        "Clinical impression: likely lower respiratory tract infection. Advised "
+        "rest and oral fluids, with review in five days if symptoms do not improve."
     ),
-    "symptoms": ["fever", "cough", "shortness of breath", "fatigue"],
-    "diagnosis": (
-        "Likely lower respiratory tract infection (clinical impression, to be "
-        "confirmed)."
-    ),
-    "treatment_plan": (
-        "Empirical antibiotics and antipyretics. Advise rest and oral fluids."
-    ),
-    "follow_up": "Review in five days if symptoms do not improve.",
+    "medications": [
+        {
+            "name": "Paracetamol 500mg",
+            "morning": True,
+            "afternoon": False,
+            "evening": False,
+            "night": True,
+            "meal": "after",
+            "duration": "5 days",
+        },
+        {
+            "name": "Azithromycin 500mg",
+            "morning": True,
+            "afternoon": False,
+            "evening": False,
+            "night": False,
+            "meal": "after",
+            "duration": "3 days",
+        },
+    ],
 }
 
 
@@ -71,5 +88,5 @@ async def summarize_transcript(transcript: str) -> dict:
         ],
     )
     content = response.choices[0].message.content or "{}"
-    # Validate/normalize against the clinical schema before persisting.
-    return ClinicalSummary.model_validate(json.loads(content)).model_dump()
+    # Validate/normalize against the prescription schema before persisting.
+    return PrescriptionNote.model_validate(json.loads(content)).model_dump()

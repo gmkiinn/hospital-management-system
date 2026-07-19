@@ -15,6 +15,7 @@ _SYSTEM_PROMPT = (
     "medications (array of objects, each with: name (string, the medicine), "
     "morning (bool), afternoon (bool), evening (bool), night (bool) for dose "
     "timing, meal ('before' or 'after' food), duration (string, e.g. '5 days')). "
+    "meal MUST be exactly 'before' or 'after' - if it is not stated, use 'after'. "
     "If a medicine's timing is unclear, set only the booleans you are confident "
     "about and leave the rest false. Use an empty medications array if none are "
     "mentioned."

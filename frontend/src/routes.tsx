@@ -26,16 +26,18 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <DashboardPage /> },
               {
-                element: <ProtectedRoute roles={['admin', 'receptionist']} />,
-                children: [
-                  { path: '/patients', element: <PatientsPage /> },
-                  { path: '/appointments', element: <BookingPage /> },
-                  { path: '/queue', element: <QueuePage /> },
-                ],
+                element: (
+                  <ProtectedRoute roles={['admin', 'receptionist', 'doctor']} />
+                ),
+                children: [{ path: '/appointments', element: <BookingPage /> }],
               },
               {
                 element: <ProtectedRoute roles={['admin']} />,
-                children: [{ path: '/setup', element: <SetupPage /> }],
+                children: [
+                  { path: '/patients', element: <PatientsPage /> },
+                  { path: '/queue', element: <QueuePage /> },
+                  { path: '/setup', element: <SetupPage /> },
+                ],
               },
               {
                 element: <ProtectedRoute roles={['doctor', 'admin']} />,

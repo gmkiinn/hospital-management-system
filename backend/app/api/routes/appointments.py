@@ -18,7 +18,8 @@ from app.services import appointment_service
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
-_STAFF = (UserRole.ADMIN, UserRole.RECEPTIONIST)
+# Doctors have full appointment privileges too (book, check in, cancel).
+_STAFF = (UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR)
 
 
 @router.post(

@@ -3,6 +3,7 @@ import type {
   Appointment,
   AppointmentSource,
   AppointmentStatus,
+  Gender,
 } from '../types'
 
 export interface AppointmentCreate {
@@ -25,6 +26,7 @@ export interface WalkInBooking {
   slot_start: string
   full_name: string
   phone: string
+  gender?: Gender | null
   email?: string | null
   address?: string | null
   paid: boolean

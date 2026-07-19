@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models.enums import AppointmentSource, AppointmentStatus
+from app.models.enums import AppointmentSource, AppointmentStatus, Gender
 
 
 class AppointmentCreate(BaseModel):
@@ -24,6 +24,7 @@ class WalkInBooking(BaseModel):
     slot_start: datetime
     full_name: str = Field(min_length=1, max_length=255)
     phone: str = Field(min_length=3, max_length=20)
+    gender: Gender | None = None
     email: EmailStr | None = None
     address: str | None = Field(default=None, max_length=500)
     paid: bool = False

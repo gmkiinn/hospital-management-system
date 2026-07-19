@@ -229,3 +229,8 @@ frontend/build/
 
 # macOS
 .DS_Store
+
+# The generic Python "lib/" rule above unintentionally ignores the frontend
+# source lib directory (frontend/src/lib) — re-include it.
+!frontend/src/lib/
+!frontend/src/lib/**

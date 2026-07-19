@@ -1,5 +1,5 @@
 import { api } from '../lib/api'
-import type { ClinicalSummary, Consultation } from '../types'
+import type { Consultation, Prescription } from '../types'
 
 export async function startConsultation(
   appointmentId: string,
@@ -43,7 +43,7 @@ export async function uploadAudio(
 
 export async function saveFinalNote(
   id: string,
-  final_summary: ClinicalSummary,
+  final_summary: Prescription,
 ): Promise<Consultation> {
   const { data } = await api.patch<Consultation>(
     `/consultations/${id}/final-note`,

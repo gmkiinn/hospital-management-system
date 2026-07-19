@@ -84,13 +84,22 @@ export interface Appointment {
 }
 
 // --- Consultations ---
-export interface ClinicalSummary {
-  chief_complaint: string
-  history_of_present_illness: string
-  symptoms: string[]
-  diagnosis: string
-  treatment_plan: string
-  follow_up: string
+export type MealTiming = 'before' | 'after'
+
+// Medication as stored/returned by the API (no client-side id).
+export interface ApiMedication {
+  name: string
+  morning: boolean
+  afternoon: boolean
+  evening: boolean
+  night: boolean
+  meal: MealTiming
+  duration: string
+}
+
+export interface Prescription {
+  summary: string
+  medications: ApiMedication[]
 }
 
 export interface Consultation {
@@ -101,8 +110,8 @@ export interface Consultation {
   audio_path: string | null
   processing_status: ProcessingStatus
   transcript: string | null
-  ai_summary_draft: ClinicalSummary | null
-  final_summary: ClinicalSummary | null
+  ai_summary_draft: Prescription | null
+  final_summary: Prescription | null
   reviewed_at: string | null
   error_message: string | null
 }

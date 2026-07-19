@@ -11,7 +11,7 @@ import {
   Square,
   Upload,
 } from 'lucide-react'
-import type { ClinicalSummary, ProcessingStatus } from '../../types'
+import type { Prescription, ProcessingStatus } from '../../types'
 import {
   getConsultation,
   saveFinalNote,
@@ -21,7 +21,7 @@ import {
 import { Badge, Button, Card, Spinner } from '../../components/ui'
 import { useAudioRecorder } from './useAudioRecorder'
 import { PrescriptionEditor } from './PrescriptionEditor'
-import { medicationToText, mockExtractedMedications } from './prescription'
+import { fromApiMedication, toApiMedication } from './prescription'
 
 function apiError(err: unknown, fallback: string): string {
   return err instanceof AxiosError
@@ -93,7 +93,7 @@ export function ConsultationRoomPage() {
   })
 
   const finalize = useMutation({
-    mutationFn: (summary: ClinicalSummary) => saveFinalNote(id, summary),
+    mutationFn: (note: Prescription) => saveFinalNote(id, note),
     onSuccess: () => {
       toast.success('Consultation note saved')
       queryClient.invalidateQueries({ queryKey: ['consultation', id] })
@@ -239,22 +239,20 @@ export function ConsultationRoomPage() {
             AI-generated draft — edit the summary and medicines, then save.
           </p>
           <PrescriptionEditor
-            initialSummary={composeSummary(
-              consultation.final_summary ?? consultation.ai_summary_draft,
-            )}
-            initialMedications={mockExtractedMedications()}
+            initialSummary={
+              (consultation.final_summary ?? consultation.ai_summary_draft)
+                ?.summary ?? ''
+            }
+            initialMedications={(
+              (consultation.final_summary ?? consultation.ai_summary_draft)
+                ?.medications ?? []
+            ).map(fromApiMedication)}
             saving={finalize.isPending}
             reviewed={Boolean(consultation.reviewed_at)}
-            // Interim: map the new shape onto the current backend note fields.
-            // A dedicated prescription schema will replace this later.
             onSave={({ summary, medications }) =>
               finalize.mutate({
-                chief_complaint: '',
-                history_of_present_illness: summary,
-                symptoms: [],
-                diagnosis: '',
-                treatment_plan: medications.map(medicationToText).join('\n'),
-                follow_up: '',
+                summary,
+                medications: medications.map(toApiMedication),
               })
             }
           />
@@ -262,18 +260,4 @@ export function ConsultationRoomPage() {
       )}
     </div>
   )
-}
-
-// Compose the editable summary from the AI draft's fields (interim, until the
-// backend scribe returns a single plain-language summary).
-function composeSummary(d: ClinicalSummary | null): string {
-  if (!d) return ''
-  return [
-    d.chief_complaint,
-    d.history_of_present_illness,
-    d.diagnosis && `Impression: ${d.diagnosis}.`,
-    d.follow_up && `Follow-up: ${d.follow_up}.`,
-  ]
-    .filter(Boolean)
-    .join(' ')
 }

@@ -57,6 +57,7 @@ export function BookingPage() {
     queryKey: ['slots', activeDoctorId, date],
     queryFn: () => getDoctorSlots(activeDoctorId, date),
     enabled: Boolean(activeDoctorId),
+    refetchInterval: 5000, // reflect doctor-side status changes in near real time
   })
   const board = slotsQuery.data
 

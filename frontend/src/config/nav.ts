@@ -34,16 +34,16 @@ export const NAV_ITEMS: NavItem[] = [
   {
     to: '/appointments',
     label: 'Appointments',
-    roles: ['admin', 'receptionist', 'doctor'],
+    roles: ['admin', 'receptionist'],
     icon: CalendarDays,
     description: 'Book and track appointments',
   },
   {
     to: '/queue',
     label: 'Queue',
-    roles: ['admin'],
+    roles: ['admin', 'receptionist'],
     icon: ListOrdered,
-    description: 'Check patients in for their doctor',
+    description: 'Live queue and status counts',
   },
   {
     to: '/consultations',

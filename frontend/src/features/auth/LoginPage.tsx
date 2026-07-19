@@ -15,6 +15,17 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+// Demo accounts shown on the login screen (portfolio/hackathon build).
+const DEMO_ACCOUNTS: { role: string; email: string; password: string }[] = [
+  { role: 'Admin', email: 'admin@demo.com', password: 'admin12345' },
+  {
+    role: 'Receptionist',
+    email: 'reception@demo.com',
+    password: 'reception123',
+  },
+  { role: 'Doctor', email: 'dr.rahul@demo.com', password: 'doctor12345' },
+]
+
 export function LoginPage() {
   const { login, user } = useAuth()
   const navigate = useNavigate()
@@ -22,6 +33,7 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
@@ -53,7 +65,7 @@ export function LoginPage() {
             <Stethoscope className="h-6 w-6 text-white" />
           </div>
           <h1 className="text-lg font-semibold text-slate-800">
-            Hospital Management System
+            AI Hospital Management System
           </h1>
           <p className="text-sm text-slate-500">Sign in to continue</p>
         </div>
@@ -103,6 +115,31 @@ export function LoginPage() {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
+
+        {/* Demo credentials — click a role to fill the form */}
+        <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-slate-500">
+            Demo logins — tap to fill
+          </p>
+          <div className="space-y-1.5">
+            {DEMO_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                onClick={() => {
+                  setValue('email', acc.email, { shouldValidate: true })
+                  setValue('password', acc.password, { shouldValidate: true })
+                }}
+                className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1.5 text-left text-xs transition hover:border-indigo-300 hover:bg-indigo-50"
+              >
+                <span className="font-medium text-slate-700">{acc.role}</span>
+                <span className="text-slate-400">
+                  {acc.email} · {acc.password}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

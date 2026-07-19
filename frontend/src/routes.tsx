@@ -9,7 +9,7 @@ import { PatientsPage } from './features/frontdesk/PatientsPage'
 import { SetupPage } from './features/frontdesk/SetupPage'
 import { BookingPage } from './features/frontdesk/BookingPage'
 import { QueuePage } from './features/frontdesk/QueuePage'
-import { DoctorConsultationsPage } from './features/consultation/DoctorConsultationsPage'
+import { ConsultationsHome } from './features/consultation/ConsultationsHome'
 import { ConsultationRoomPage } from './features/consultation/ConsultationRoomPage'
 
 export const router = createBrowserRouter([
@@ -26,16 +26,16 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <DashboardPage /> },
               {
-                element: (
-                  <ProtectedRoute roles={['admin', 'receptionist', 'doctor']} />
-                ),
-                children: [{ path: '/appointments', element: <BookingPage /> }],
+                element: <ProtectedRoute roles={['admin', 'receptionist']} />,
+                children: [
+                  { path: '/appointments', element: <BookingPage /> },
+                  { path: '/queue', element: <QueuePage /> },
+                ],
               },
               {
                 element: <ProtectedRoute roles={['admin']} />,
                 children: [
                   { path: '/patients', element: <PatientsPage /> },
-                  { path: '/queue', element: <QueuePage /> },
                   { path: '/setup', element: <SetupPage /> },
                 ],
               },
@@ -44,7 +44,7 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     path: '/consultations',
-                    element: <DoctorConsultationsPage />,
+                    element: <ConsultationsHome />,
                   },
                   {
                     path: '/consultations/:id',

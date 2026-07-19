@@ -154,6 +154,24 @@ export function ConsultationRoomPage() {
         <h2 className="mb-3 font-medium text-slate-800">
           2 · Record the consult
         </h2>
+        {/* Guidance so the AI scribe gets a clean, structured dictation */}
+        <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+          <p className="mb-1 font-medium text-slate-700">
+            How to speak for a clean AI note
+          </p>
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>State the diagnosis or complaint (e.g. “viral fever”).</li>
+            <li>
+              For each medicine: name, dose, timings (morning / afternoon /
+              evening / night), before or after food, and duration.
+            </li>
+            <li>
+              Example: “Dolo 650 mg, morning and evening, after food, for 3
+              days.”
+            </li>
+          </ul>
+        </div>
+
         {!consultation.recording_consent ? (
           <p className="text-sm text-slate-400">
             Capture consent above to enable recording.

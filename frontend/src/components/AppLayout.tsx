@@ -26,7 +26,7 @@ export function AppLayout() {
               aria-label="Go to dashboard"
             >
               <Stethoscope className="h-5 w-5 text-indigo-600" />
-              <span>HMS</span>
+              <span>AI HMS</span>
             </Link>
             <nav className="flex items-center gap-1">
               {links.map((item) => (

@@ -71,6 +71,7 @@ async def get_day_slots(
                         label=cursor.strftime("%H:%M"),
                         status=appt.status.value,
                         appointment_id=appt.id,
+                        patient_id=appt.patient_id,
                         patient_name=patient_name,
                         paid=appt.paid,
                         token_number=appt.token_number,

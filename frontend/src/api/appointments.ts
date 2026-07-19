@@ -89,6 +89,26 @@ export async function doctorQueue(doctorId: string): Promise<Appointment[]> {
   return data
 }
 
+export interface AppointmentDetailsUpdate {
+  full_name: string
+  phone: string
+  gender?: Gender | null
+  email?: string | null
+  address?: string | null
+  paid: boolean
+}
+
+export async function updateAppointmentDetails(
+  appointmentId: string,
+  payload: AppointmentDetailsUpdate,
+): Promise<Appointment> {
+  const { data } = await api.patch<Appointment>(
+    `/appointments/${appointmentId}/details`,
+    payload,
+  )
+  return data
+}
+
 export async function markArrived(appointmentId: string): Promise<Appointment> {
   const { data } = await api.post<Appointment>(
     `/appointments/${appointmentId}/arrive`,

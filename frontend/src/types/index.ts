@@ -72,6 +72,7 @@ export interface Patient {
   gender: Gender | null
   blood_group: string | null
   email: string | null
+  address_line1: string | null
   allergies: string | null
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
@@ -103,6 +104,7 @@ export interface Slot {
   label: string // local clock time, e.g. "10:15"
   status: SlotStatus
   appointment_id: string | null
+  patient_id: string | null
   patient_name: string | null
   paid: boolean | null
   token_number: number | null

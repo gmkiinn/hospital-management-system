@@ -179,8 +179,9 @@ export function ConsultationRoomPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-slate-400">
-              You can speak in the patient's language — the transcript and note
-              are generated in English.
+              You can speak in the patient's language (Hindi, Telugu, Tamil,
+              Kannada, Malayalam, …) — the transcript and note are generated in
+              English.
             </p>
 
             {recorder.error && (

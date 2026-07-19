@@ -47,6 +47,17 @@ class AppointmentResponse(BaseModel):
     reason: str | None
 
 
+class AppointmentDetailsUpdate(BaseModel):
+    """Edit the patient details (and payment) on an existing appointment."""
+
+    full_name: str = Field(min_length=1, max_length=255)
+    phone: str = Field(min_length=3, max_length=20)
+    gender: Gender | None = None
+    email: EmailStr | None = None
+    address: str | None = Field(default=None, max_length=500)
+    paid: bool = False
+
+
 class CancelRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
 

@@ -32,6 +32,7 @@ class PatientResponse(BaseModel):
     gender: Gender | None
     blood_group: str | None
     email: str | None
+    address_line1: str | None
     allergies: str | None
     emergency_contact_name: str | None
     emergency_contact_phone: str | None

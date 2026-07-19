@@ -15,6 +15,7 @@ class Slot(BaseModel):
         SlotStatus  # "available" | booked | arrived | in_consultation | completed | ...
     )
     appointment_id: uuid.UUID | None = None
+    patient_id: uuid.UUID | None = None
     patient_name: str | None = None
     paid: bool | None = None
     token_number: int | None = None

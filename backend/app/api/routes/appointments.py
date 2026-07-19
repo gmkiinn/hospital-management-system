@@ -12,6 +12,7 @@ from app.models.enums import AppointmentStatus, UserRole
 from app.models.user import User
 from app.schemas.appointment import (
     AppointmentCreate,
+    AppointmentDetailsUpdate,
     AppointmentResponse,
     CancelRequest,
     VoiceBookingDraft,
@@ -151,6 +152,32 @@ async def mark_arrived(
     appointment = await _load(db, appointment_id)
     appointment = await appointment_service.mark_arrived(db, appointment)
     await db.commit()
+    return AppointmentResponse.model_validate(appointment)
+
+
+@router.patch("/{appointment_id}/details", response_model=AppointmentResponse)
+async def update_appointment_details(
+    appointment_id: uuid.UUID,
+    payload: AppointmentDetailsUpdate,
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(require_roles(*_STAFF)),
+) -> AppointmentResponse:
+    appointment = await _load(db, appointment_id)
+    try:
+        appointment = await appointment_service.update_appointment_details(
+            db, appointment, payload
+        )
+        await db.commit()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Another patient already uses this phone number",
+        ) from exc
     return AppointmentResponse.model_validate(appointment)
 
 

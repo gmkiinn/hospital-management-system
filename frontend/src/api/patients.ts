@@ -24,3 +24,8 @@ export async function createPatient(payload: PatientCreate): Promise<Patient> {
   const { data } = await api.post<Patient>('/patients', payload)
   return data
 }
+
+export async function getPatient(id: string): Promise<Patient> {
+  const { data } = await api.get<Patient>(`/patients/${id}`)
+  return data
+}

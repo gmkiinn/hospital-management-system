@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 import toast from 'react-hot-toast'
-import { CalendarDays, CheckCircle2, LogIn } from 'lucide-react'
+import { CalendarDays, CheckCircle2, LogIn, Mic, Square } from 'lucide-react'
 import {
   bookWalkIn,
   cancelAppointment,
   markArrived,
+  voiceDraft,
+  type VoiceBookingDraft,
 } from '../../api/appointments'
 import { getDoctorSlots, listDoctors } from '../../api/doctors'
+import { useAudioRecorder } from '../consultation/useAudioRecorder'
 import type { Gender, Slot } from '../../types'
 import {
   Badge,
@@ -43,6 +46,10 @@ export function BookingPage() {
   const [doctorId, setDoctorId] = useState('')
   const [date, setDate] = useState(todayStr())
   const [selectedStart, setSelectedStart] = useState<string | null>(null)
+  // Voice: fields parsed from the receptionist's spoken request, pre-filled
+  // into the booking form. `voiceNonce` forces the form to re-init on new input.
+  const [prefill, setPrefill] = useState<Partial<BookingForm> | null>(null)
+  const [voiceNonce, setVoiceNonce] = useState(0)
 
   const doctorsQuery = useQuery({
     queryKey: ['doctors'],
@@ -81,6 +88,7 @@ export function BookingPage() {
     onSuccess: () => {
       toast.success('Appointment booked')
       setSelectedStart(null)
+      setPrefill(null)
       refreshSlots()
     },
     onError: (err) => {
@@ -88,6 +96,50 @@ export function BookingPage() {
       refreshSlots() // slot may have just been taken
     },
   })
+
+  // --- Voice booking ---
+  const recorder = useAudioRecorder()
+  const processedBlob = useRef<Blob | null>(null)
+
+  function applyDraft(draft: VoiceBookingDraft) {
+    if (draft.doctor_id) setDoctorId(draft.doctor_id)
+    if (draft.date) setDate(draft.date)
+    setPrefill({
+      full_name: draft.full_name ?? undefined,
+      phone: draft.phone ?? undefined,
+      gender: draft.gender ?? undefined,
+      email: draft.email ?? undefined,
+      address: draft.address ?? undefined,
+      paid: draft.paid,
+    })
+    setVoiceNonce((n) => n + 1)
+    setSelectedStart(draft.slot_start)
+    if (draft.slot_start) {
+      toast.success(
+        `Heard: ${draft.full_name ?? 'patient'}${
+          draft.slot_label ? ` · ${draft.slot_label}` : ''
+        } — review and confirm`,
+      )
+    } else {
+      toast(draft.message ?? 'Pick a slot to finish booking')
+    }
+  }
+
+  const voiceMutation = useMutation({
+    mutationFn: (blob: Blob) => voiceDraft(blob, activeDoctorId, date),
+    onSuccess: applyDraft,
+    onError: (err) => toast.error(apiError(err, 'Could not understand that')),
+  })
+
+  // Auto-submit the recording once it's ready (fires once per new blob).
+  useEffect(() => {
+    if (recorder.blob && processedBlob.current !== recorder.blob) {
+      processedBlob.current = recorder.blob
+      voiceMutation.mutate(recorder.blob)
+    }
+    // voiceMutation is stable; depend only on the produced blob.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.blob])
 
   const arriveMutation = useMutation({
     mutationFn: markArrived,
@@ -146,6 +198,39 @@ export function BookingPage() {
           }}
         />
       </div>
+
+      {/* Voice booking */}
+      <Card className="mb-5 lg:max-w-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-medium text-slate-800">
+              <Mic className="h-4 w-4 text-indigo-600" /> Book by voice
+            </h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Speak in any language — e.g. “Book Ramesh, phone 98765 43210,
+              male, with Dr. Rahul tomorrow morning, paid.” We’ll fill the form
+              for you to confirm.
+            </p>
+          </div>
+          {recorder.status === 'recording' ? (
+            <Button variant="danger" onClick={recorder.stop}>
+              <Square className="h-4 w-4" /> Stop
+              <span className="ml-1 tabular-nums">{recorder.seconds}s</span>
+            </Button>
+          ) : (
+            <Button
+              onClick={() => recorder.start()}
+              disabled={voiceMutation.isPending || !activeDoctorId}
+            >
+              <Mic className="h-4 w-4" />
+              {voiceMutation.isPending ? 'Understanding…' : 'Start speaking'}
+            </Button>
+          )}
+        </div>
+        {recorder.error && (
+          <p className="mt-2 text-xs text-red-600">{recorder.error}</p>
+        )}
+      </Card>
 
       {/* Legend */}
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
@@ -224,8 +309,9 @@ export function BookingPage() {
             </Card>
           ) : selectedSlot.status === 'available' ? (
             <BookingForm
-              key={selectedSlot.slot_start}
+              key={`${selectedSlot.slot_start}-${voiceNonce}`}
               time={selectedSlot.label}
+              initial={prefill}
               pending={bookMutation.isPending}
               onSubmit={(values) =>
                 bookMutation.mutate({
@@ -271,11 +357,13 @@ type BookingForm = z.infer<typeof bookingSchema>
 
 function BookingForm({
   time,
+  initial,
   pending,
   onSubmit,
   onClose,
 }: {
   time: string
+  initial?: Partial<BookingForm> | null
   pending: boolean
   onSubmit: (values: {
     full_name: string
@@ -289,7 +377,7 @@ function BookingForm({
 }) {
   const { register, handleSubmit, formState } = useForm<BookingForm>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: { paid: false },
+    defaultValues: { paid: false, ...initial },
   })
 
   return (

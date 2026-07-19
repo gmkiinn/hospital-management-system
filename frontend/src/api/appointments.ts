@@ -39,6 +39,41 @@ export async function bookWalkIn(payload: WalkInBooking): Promise<Appointment> {
   return data
 }
 
+export interface VoiceBookingDraft {
+  transcript: string
+  doctor_id: string
+  doctor_name: string
+  date: string
+  slot_start: string | null
+  slot_label: string | null
+  full_name: string | null
+  phone: string | null
+  gender: Gender | null
+  email: string | null
+  address: string | null
+  paid: boolean
+  reason: string | null
+  message: string | null
+}
+
+// Send a spoken request; get back a resolved draft to review and confirm.
+export async function voiceDraft(
+  blob: Blob,
+  doctorId?: string,
+  date?: string,
+): Promise<VoiceBookingDraft> {
+  const form = new FormData()
+  form.append('file', blob, 'booking.webm')
+  if (doctorId) form.append('doctor_id', doctorId)
+  if (date) form.append('date', date)
+  const { data } = await api.post<VoiceBookingDraft>(
+    '/appointments/voice-draft',
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+  return data
+}
+
 export async function listAppointments(params?: {
   doctor_id?: string
   status_filter?: AppointmentStatus

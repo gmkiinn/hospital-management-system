@@ -27,7 +27,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # 2) Copy the application source (see .dockerignore for what's excluded).
 COPY . .
 
-# Render injects $PORT at runtime. `sh -c` expands it; `exec` then replaces the
-# shell with uvicorn so it becomes PID 1 and receives SIGTERM directly (clean,
-# fast shutdowns on redeploy). The venv is on PATH, so no `uv run` is needed.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# On boot: apply migrations (owner role), seed once (idempotent), then start the
+# API. Render's free tier has no pre-deploy/shell, so this is where schema + seed
+# happen; both are no-ops after the first successful run.
+#   `sh -c` expands $PORT; `exec` replaces the shell with uvicorn so it becomes
+#   PID 1 and receives SIGTERM directly (clean, fast shutdowns). The venv is on
+#   PATH, so alembic/python/uvicorn are called directly (no `uv run`).
+CMD ["sh", "-c", "alembic upgrade head && python -m scripts.seed && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

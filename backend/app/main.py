@@ -7,6 +7,7 @@ from app.api.routes import (
     departments,
     doctors,
     health,
+    medicines,
     patients,
 )
 from app.core.config import settings
@@ -23,3 +24,4 @@ app.include_router(doctors.router, prefix=settings.api_v1_prefix)
 app.include_router(patients.router, prefix=settings.api_v1_prefix)
 app.include_router(appointments.router, prefix=settings.api_v1_prefix)
 app.include_router(consultations.router, prefix=settings.api_v1_prefix)
+app.include_router(medicines.router, prefix=settings.api_v1_prefix)

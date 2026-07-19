@@ -266,13 +266,13 @@ export function ConsultationRoomPage() {
                 ?.medications ?? []
             ).map(fromApiMedication)}
             saving={finalize.isPending}
-            reviewed={Boolean(consultation.reviewed_at)}
             onSave={({ summary, medications }) =>
-              finalize.mutate({
+              finalize.mutateAsync({
                 summary,
                 medications: medications.map(toApiMedication),
               })
             }
+            onBack={() => navigate('/consultations')}
           />
         </Card>
       )}

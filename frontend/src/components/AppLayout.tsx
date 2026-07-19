@@ -27,7 +27,7 @@ export function AppLayout() {
             <Stethoscope className="h-5 w-5 text-indigo-600" />
             <span>AI HMS</span>
           </Link>
-          <nav className="flex flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap">
+          <nav className="no-scrollbar flex flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap">
             {links.map((item) => (
               <NavLink
                 key={item.to}

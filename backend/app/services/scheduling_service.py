@@ -51,6 +51,7 @@ async def get_day_slots(
     }
 
     duration = timedelta(minutes=doctor.slot_duration_minutes)
+    now_utc = datetime.now(_UTC)
     sessions_out: list[SlotSession] = []
 
     for session in doctor.sessions:
@@ -76,12 +77,14 @@ async def get_day_slots(
                     )
                 )
             else:
+                # A free slot whose time has already passed can't be booked.
+                is_past = slot_start < now_utc
                 slots.append(
                     Slot(
                         slot_start=slot_start,
                         slot_end=(cursor + duration).astimezone(_UTC),
                         label=cursor.strftime("%H:%M"),
-                        status="available",
+                        status="past" if is_past else "available",
                     )
                 )
             cursor += duration

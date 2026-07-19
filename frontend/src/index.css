@@ -1,1 +1,11 @@
 @import 'tailwindcss';
+
+/* Horizontally-scrollable areas (e.g. the header nav on small screens) stay
+   swipeable but hide the scrollbar for a cleaner look. */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE / old Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome / Safari */
+}

@@ -82,6 +82,7 @@ export interface Appointment {
   id: string
   doctor_id: string
   patient_id: string
+  patient_name: string | null
   slot_start: string
   slot_end: string
   source: AppointmentSource
@@ -92,8 +93,9 @@ export interface Appointment {
 }
 
 // --- Scheduling board (slot grid) ---
-// A slot's status is "available" or any AppointmentStatus value.
-export type SlotStatus = 'available' | AppointmentStatus
+// A slot's status is "available", "past" (free but elapsed), or any
+// AppointmentStatus value.
+export type SlotStatus = 'available' | 'past' | AppointmentStatus
 
 export interface Slot {
   slot_start: string // UTC ISO; sent back verbatim when booking

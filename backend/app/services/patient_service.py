@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.patient import Patient
@@ -16,9 +16,20 @@ async def create_patient(
     return patient
 
 
-async def search_by_phone(db: AsyncSession, phone: str) -> list[Patient]:
+async def search_by_phone(db: AsyncSession, query: str) -> list[Patient]:
+    """Partial, case-insensitive lookup by phone or name.
+
+    Previously an exact phone match, which returned nothing unless the full
+    number was typed. A substring match is what the search box implies.
+    """
+    like = f"%{query.strip()}%"
     result = await db.execute(
-        select(Patient).where(Patient.phone == phone, Patient.deleted_at.is_(None))
+        select(Patient)
+        .where(
+            or_(Patient.phone.ilike(like), Patient.full_name.ilike(like)),
+            Patient.deleted_at.is_(None),
+        )
+        .order_by(Patient.full_name)
     )
     return list(result.scalars().all())
 

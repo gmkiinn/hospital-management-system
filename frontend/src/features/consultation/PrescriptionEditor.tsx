@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, CheckCircle2, Circle, Plus, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui'
 import { cn } from '../../lib/utils'
 import { MedicineTypeahead } from './MedicineTypeahead'
@@ -17,21 +17,55 @@ const TIMINGS: Array<{ key: keyof Medication; label: string }> = [
   { key: 'night', label: 'N' },
 ]
 
+const serialize = (summary: string, meds: Medication[]) =>
+  JSON.stringify({ summary, meds })
+
 export function PrescriptionEditor({
   initialSummary,
   initialMedications,
   saving,
-  reviewed,
+  alreadySaved,
   onSave,
+  onBack,
 }: {
   initialSummary: string
   initialMedications: Medication[]
   saving: boolean
-  reviewed: boolean
-  onSave: (payload: PrescriptionPayload) => void
+  // True only when this note was already approved/saved before. A fresh AI
+  // draft is unsaved, so the button must start enabled.
+  alreadySaved: boolean
+  onSave: (payload: PrescriptionPayload) => Promise<unknown>
+  onBack: () => void
 }) {
   const [summary, setSummary] = useState(initialSummary)
   const [meds, setMeds] = useState<Medication[]>(initialMedications)
+  // Snapshot of what's on the server so we can disable saving when unchanged.
+  // Null means "never saved" (e.g. an AI draft) → always dirty, so enabled.
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(() =>
+    alreadySaved ? serialize(initialSummary, initialMedications) : null,
+  )
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+
+  const dirty =
+    savedSnapshot === null || serialize(summary, meds) !== savedSnapshot
+  const showSaved = savedAt !== null
+
+  // The "Saved" confirmation is transient — clear it after 5s.
+  useEffect(() => {
+    if (savedAt === null) return
+    const t = setTimeout(() => setSavedAt(null), 5000)
+    return () => clearTimeout(t)
+  }, [savedAt])
+
+  async function handleSave() {
+    try {
+      await onSave({ summary, medications: meds })
+      setSavedSnapshot(serialize(summary, meds))
+      setSavedAt(Date.now())
+    } catch {
+      // Parent surfaces the error toast; keep the form dirty so they can retry.
+    }
+  }
 
   function patchMed(id: string, patch: Partial<Medication>) {
     setMeds((list) => list.map((m) => (m.id === id ? { ...m, ...patch } : m)))
@@ -162,19 +196,21 @@ export function PrescriptionEditor({
         </p>
       </div>
 
-      <div className="flex items-center gap-3 pt-1">
-        <Button
-          onClick={() => onSave({ summary, medications: meds })}
-          disabled={saving}
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          {saving ? 'Saving…' : 'Approve & save note'}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <div className="flex items-center gap-3">
+          <Button onClick={handleSave} disabled={saving || !dirty}>
+            <CheckCircle2 className="h-4 w-4" />
+            {saving ? 'Saving…' : 'Approve & save note'}
+          </Button>
+          {showSaved && (
+            <span className="flex items-center gap-1 text-sm text-green-700">
+              <Circle className="h-3 w-3 fill-green-600 text-green-600" /> Saved
+            </span>
+          )}
+        </div>
+        <Button variant="secondary" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" /> Back to consultations
         </Button>
-        {reviewed && (
-          <span className="flex items-center gap-1 text-sm text-green-700">
-            <Circle className="h-3 w-3 fill-green-600 text-green-600" /> Saved
-          </span>
-        )}
       </div>
     </div>
   )

@@ -17,6 +17,32 @@ ACTIVE_STATUSES = (
 )
 
 
+async def _next_token(
+    db: AsyncSession, doctor_id: uuid.UUID, slot_start: datetime
+) -> int:
+    """Next queue token for a doctor, reset each day.
+
+    Assigned at booking time so the patient gets their token immediately (not
+    only on arrival). Scoped to the slot's UTC calendar day so numbers restart
+    daily instead of growing forever.
+    """
+    day_start = slot_start
+    if day_start.tzinfo is None:
+        day_start = day_start.replace(tzinfo=UTC)
+    day_start = day_start.astimezone(UTC).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    day_end = day_start + timedelta(days=1)
+    result = await db.execute(
+        select(func.max(Appointment.token_number)).where(
+            Appointment.doctor_id == doctor_id,
+            Appointment.slot_start >= day_start,
+            Appointment.slot_start < day_end,
+        )
+    )
+    return (result.scalar() or 0) + 1
+
+
 async def book_appointment(
     db: AsyncSession,
     hospital_id: uuid.UUID,
@@ -40,10 +66,12 @@ async def book_appointment(
         slot_end=slot_end,
         source=data.source,
         status=AppointmentStatus.BOOKED,
+        token_number=await _next_token(db, data.doctor_id, data.slot_start),
         reason=data.reason,
     )
     db.add(appointment)
     await db.flush()  # UNIQUE(doctor_id, slot_start) fires here on a clash
+    await db.refresh(appointment, ["patient"])  # so patient_name is available
     return appointment
 
 
@@ -64,6 +92,12 @@ async def book_walk_in(
     doctor = result.scalar_one_or_none()
     if doctor is None:
         raise ValueError("Doctor not found")
+
+    slot_start = data.slot_start
+    if slot_start.tzinfo is None:
+        slot_start = slot_start.replace(tzinfo=UTC)
+    if slot_start < datetime.now(UTC):
+        raise ValueError("That time slot has already passed")
 
     existing = await db.execute(
         select(Patient).where(Patient.phone == data.phone, Patient.deleted_at.is_(None))
@@ -99,11 +133,14 @@ async def book_walk_in(
         slot_end=slot_end,
         source=AppointmentSource.WALK_IN,
         status=AppointmentStatus.BOOKED,
+        token_number=await _next_token(db, data.doctor_id, data.slot_start),
         paid=data.paid,
         reason=data.reason,
     )
     db.add(appointment)
     await db.flush()  # UNIQUE(doctor_id, slot_start) fires here on a clash
+    # patient already loaded above, but refresh keeps the relationship consistent
+    await db.refresh(appointment, ["patient"])
     return appointment
 
 
@@ -146,13 +183,11 @@ async def get_appointment(
 
 
 async def mark_arrived(db: AsyncSession, appointment: Appointment) -> Appointment:
-    result = await db.execute(
-        select(func.max(Appointment.token_number)).where(
-            Appointment.doctor_id == appointment.doctor_id
+    # Token is assigned at booking; only back-fill for legacy rows without one.
+    if appointment.token_number is None:
+        appointment.token_number = await _next_token(
+            db, appointment.doctor_id, appointment.slot_start
         )
-    )
-    current_max = result.scalar() or 0
-    appointment.token_number = current_max + 1
     appointment.status = AppointmentStatus.ARRIVED
     await db.flush()
     return appointment

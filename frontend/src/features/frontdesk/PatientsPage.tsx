@@ -114,7 +114,7 @@ export function PatientsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by phone…"
+              placeholder="Search by name or phone…"
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
@@ -124,8 +124,8 @@ export function PatientsPage() {
           ) : patients.length === 0 ? (
             <EmptyState>No patients found.</EmptyState>
           ) : (
-            <Card className="overflow-hidden p-0">
-              <table className="w-full text-sm">
+            <Card className="overflow-x-auto p-0">
+              <table className="w-full min-w-[28rem] text-sm">
                 <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-4 py-2.5 font-medium">Name</th>

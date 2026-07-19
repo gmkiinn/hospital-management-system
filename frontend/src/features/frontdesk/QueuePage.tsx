@@ -5,7 +5,6 @@ import toast from 'react-hot-toast'
 import { CheckCircle2 } from 'lucide-react'
 import { doctorQueue, markArrived } from '../../api/appointments'
 import { listDoctors } from '../../api/doctors'
-import { listPatients } from '../../api/patients'
 import {
   Badge,
   Button,
@@ -22,6 +21,23 @@ function apiError(err: unknown, fallback: string): string {
     : fallback
 }
 
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: string
+}) {
+  return (
+    <Card className="py-3 text-center">
+      <div className={`text-2xl font-semibold ${tone}`}>{value}</div>
+      <div className="text-xs text-slate-500">{label}</div>
+    </Card>
+  )
+}
+
 export function QueuePage() {
   const queryClient = useQueryClient()
   const [doctorId, setDoctorId] = useState('')
@@ -30,14 +46,11 @@ export function QueuePage() {
     queryKey: ['doctors'],
     queryFn: () => listDoctors(),
   })
-  const patientsQuery = useQuery({
-    queryKey: ['patients', ''],
-    queryFn: () => listPatients(),
-  })
   const queueQuery = useQuery({
     queryKey: ['queue', doctorId],
     queryFn: () => doctorQueue(doctorId),
     enabled: Boolean(doctorId),
+    refetchInterval: 5000, // keep the board live as the doctor works
   })
 
   const arrive = useMutation({
@@ -50,14 +63,15 @@ export function QueuePage() {
   })
 
   const doctors = doctorsQuery.data ?? []
-  const patients = patientsQuery.data ?? []
   const queue = queueQuery.data ?? []
-  const patientName = (id: string) =>
-    patients.find((p) => p.id === id)?.full_name ?? '—'
+
+  const waiting = queue.filter((a) => a.status === 'booked').length
+  const arrived = queue.filter((a) => a.status === 'arrived').length
+  const inConsult = queue.filter((a) => a.status === 'in_consultation').length
 
   return (
     <div>
-      <PageHeader title="Queue" subtitle="Check patients in for their doctor" />
+      <PageHeader title="Queue" subtitle="Live queue and status counts" />
 
       <div className="mb-4 max-w-sm">
         <select
@@ -73,6 +87,14 @@ export function QueuePage() {
           ))}
         </select>
       </div>
+
+      {doctorId && (
+        <div className="mb-5 grid grid-cols-3 gap-3 sm:max-w-lg">
+          <Stat label="Waiting" value={waiting} tone="text-blue-700" />
+          <Stat label="Arrived" value={arrived} tone="text-amber-700" />
+          <Stat label="In consult" value={inConsult} tone="text-indigo-700" />
+        </div>
+      )}
 
       {!doctorId ? (
         <EmptyState>Choose a doctor to see their queue.</EmptyState>
@@ -90,7 +112,7 @@ export function QueuePage() {
                 </div>
                 <div>
                   <div className="font-medium text-slate-800">
-                    {patientName(a.patient_id)}
+                    {a.patient_name ?? '—'}
                   </div>
                   <div className="text-xs text-slate-500">
                     {new Date(a.slot_start).toLocaleString()}

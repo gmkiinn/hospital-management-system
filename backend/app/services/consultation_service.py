@@ -23,7 +23,10 @@ async def start_consultation(
             hospital_id=appointment.hospital_id, appointment_id=appointment.id
         )
         db.add(consultation)
-    appointment.status = AppointmentStatus.IN_CONSULTATION
+    # Only advance a fresh appointment into consultation. Reopening a COMPLETED
+    # (or already in-progress) visit to review/edit its note must not reset it.
+    if appointment.status in (AppointmentStatus.BOOKED, AppointmentStatus.ARRIVED):
+        appointment.status = AppointmentStatus.IN_CONSULTATION
     await db.flush()
     return consultation
 

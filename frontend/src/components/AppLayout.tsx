@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { LogOut, Stethoscope } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import { cn } from '../lib/utils'
@@ -20,10 +20,14 @@ export function AppLayout() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 font-semibold text-slate-800">
+            <Link
+              to="/"
+              className="flex items-center gap-2 font-semibold text-slate-800 transition hover:text-indigo-600"
+              aria-label="Go to dashboard"
+            >
               <Stethoscope className="h-5 w-5 text-indigo-600" />
               <span>HMS</span>
-            </div>
+            </Link>
             <nav className="flex items-center gap-1">
               {links.map((item) => (
                 <NavLink

@@ -43,6 +43,12 @@ export interface Department {
 }
 
 // --- Doctors ---
+export interface DoctorSession {
+  label: string
+  start: string // local "HH:MM"
+  end: string // local "HH:MM"
+}
+
 export interface Doctor {
   id: string
   user_id: string
@@ -53,6 +59,7 @@ export interface Doctor {
   qualification: string | null
   consultation_fee: string | null
   slot_duration_minutes: number
+  sessions: DoctorSession[]
   is_active: boolean
 }
 
@@ -80,7 +87,38 @@ export interface Appointment {
   source: AppointmentSource
   status: AppointmentStatus
   token_number: number | null
+  paid: boolean
   reason: string | null
+}
+
+// --- Scheduling board (slot grid) ---
+// A slot's status is "available" or any AppointmentStatus value.
+export type SlotStatus = 'available' | AppointmentStatus
+
+export interface Slot {
+  slot_start: string // UTC ISO; sent back verbatim when booking
+  slot_end: string
+  label: string // local clock time, e.g. "10:15"
+  status: SlotStatus
+  appointment_id: string | null
+  patient_name: string | null
+  paid: boolean | null
+  token_number: number | null
+}
+
+export interface SlotSession {
+  label: string
+  start: string
+  end: string
+  slots: Slot[]
+}
+
+export interface DaySlots {
+  doctor_id: string
+  date: string
+  timezone: string
+  slot_duration_minutes: number
+  sessions: SlotSession[]
 }
 
 // --- Consultations ---

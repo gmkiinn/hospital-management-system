@@ -20,6 +20,23 @@ export async function bookAppointment(
   return data
 }
 
+export interface WalkInBooking {
+  doctor_id: string
+  slot_start: string
+  full_name: string
+  phone: string
+  email?: string | null
+  address?: string | null
+  paid: boolean
+  reason?: string | null
+}
+
+// One-shot booking: captures the patient (reused by phone) and books the slot.
+export async function bookWalkIn(payload: WalkInBooking): Promise<Appointment> {
+  const { data } = await api.post<Appointment>('/appointments/walk-in', payload)
+  return data
+}
+
 export async function listAppointments(params?: {
   doctor_id?: string
   status_filter?: AppointmentStatus

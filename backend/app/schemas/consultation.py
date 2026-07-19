@@ -1,22 +1,39 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import ProcessingStatus
 
+MealTiming = Literal["before", "after"]
 
-class ClinicalSummary(BaseModel):
-    """Structured clinical-note shape. Lenient so AI output validates cleanly."""
+
+class Medication(BaseModel):
+    """A single prescribed medicine with its dosing schedule."""
 
     model_config = ConfigDict(extra="ignore")
 
-    chief_complaint: str = ""
-    history_of_present_illness: str = ""
-    symptoms: list[str] = Field(default_factory=list)
-    diagnosis: str = ""
-    treatment_plan: str = ""
-    follow_up: str = ""
+    name: str = ""
+    morning: bool = False
+    afternoon: bool = False
+    evening: bool = False
+    night: bool = False
+    meal: MealTiming = "after"
+    duration: str = ""
+
+
+class PrescriptionNote(BaseModel):
+    """Doctor-facing note: a plain-language summary plus structured meds.
+
+    Stored in the consultation's JSONB columns (ai_summary_draft / final_summary).
+    Lenient so AI output validates cleanly and legacy notes don't error.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    summary: str = ""
+    medications: list[Medication] = Field(default_factory=list)
 
 
 class ConsentRequest(BaseModel):
@@ -24,7 +41,7 @@ class ConsentRequest(BaseModel):
 
 
 class FinalNoteRequest(BaseModel):
-    final_summary: ClinicalSummary
+    final_summary: PrescriptionNote
 
 
 class ConsultationResponse(BaseModel):
@@ -37,7 +54,7 @@ class ConsultationResponse(BaseModel):
     audio_path: str | None
     processing_status: ProcessingStatus
     transcript: str | None
-    ai_summary_draft: dict | None
-    final_summary: dict | None
+    ai_summary_draft: PrescriptionNote | None
+    final_summary: PrescriptionNote | None
     reviewed_at: datetime | None
     error_message: str | None
